@@ -2,15 +2,14 @@ import { getFirestoreDb, TUTOR_SESSIONS_COLLECTION } from '@/lib/firebase-admin'
 
 export const runtime = 'nodejs';
 
-function verifyPin(req: Request) {
-  const expected = process.env.FAMILY_PIN || '240813';
-  const provided = req.headers.get('x-family-pin');
-  return provided && provided.trim() === expected.trim();
-}
+import { isParentAuthorized } from '@/lib/auth-check';
 
 export async function GET(req: Request) {
-  if (!verifyPin(req)) {
-    return new Response(JSON.stringify({ error: 'Non autorizzato' }), { status: 401 });
+  if (!isParentAuthorized(req)) {
+    return new Response(
+      JSON.stringify({ error: 'Accesso riservato: inserisci il PIN Genitori corretto per visualizzare le statistiche.' }),
+      { status: 401 }
+    );
   }
 
   try {

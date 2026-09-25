@@ -23,6 +23,14 @@ export interface SubjectMeta {
 }
 
 export type StudentId = 'alessio' | 'mattia';
+export type UserRole = 'alessio' | 'mattia' | 'parent';
+
+export interface AuthSession {
+  role: UserRole;
+  name: string;
+  avatar: string;
+  token: string;
+}
 
 export interface StudentProfile {
   id: StudentId;

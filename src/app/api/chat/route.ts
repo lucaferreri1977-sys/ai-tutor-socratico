@@ -2,6 +2,7 @@ import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { buildSocraticSystemPrompt } from '@/lib/socratic-prompts';
 import { SubjectId } from '@/lib/types';
+import { getAuthorizedUser } from '@/lib/auth-check';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -16,22 +17,18 @@ interface ClientMessage {
 export async function POST(req: Request) {
   try {
     const rawBody = await req.json();
-    const { messages, subject = 'matematica', pin, studentName = 'Studente' } = rawBody as {
+    const { messages, subject = 'matematica', studentName } = rawBody as {
       messages: ClientMessage[];
       subject: SubjectId;
-      pin?: string;
       studentName?: string;
     };
 
-    // 1. Verifica PIN di Famiglia
-    const expectedPin = process.env.FAMILY_PIN || '240813';
-    const clientPin = req.headers.get('x-family-pin') || pin;
-
-    if (!clientPin || clientPin.trim() !== expectedPin.trim()) {
+    // 1. Verifica autenticazione (Alessio, Mattia o Genitori)
+    const user = getAuthorizedUser(req);
+    if (!user) {
       return new Response(
         JSON.stringify({
-          error:
-            'Accesso protetto: PIN di famiglia non valido o non fornito. Inserisci il PIN per utilizzare Socrate.',
+          error: 'Accesso protetto: devi effettuare il login con la tua password per utilizzare Socrate.',
         }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
@@ -57,7 +54,8 @@ export async function POST(req: Request) {
     });
 
     const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-    const systemPrompt = buildSocraticSystemPrompt(subject, studentName);
+    const effectiveStudentName = studentName || user.name;
+    const systemPrompt = buildSocraticSystemPrompt(subject, effectiveStudentName);
 
     // 3. Conversione messaggi per modello con supporto multimodale foto
     const modelMessages = messages.map((msg, index) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary } from '@/lib/types';
+import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary, AuthSession } from '@/lib/types';
 import { SubjectSelector } from '@/components/SubjectSelector';
 import { ChatHeader } from '@/components/ChatHeader';
 import { ChatMessage, MessageData } from '@/components/ChatMessage';
@@ -10,12 +10,12 @@ import { SubjectWelcome } from '@/components/SubjectWelcome';
 import { ParentModal } from '@/components/ParentModal';
 import { ParentDashboardModal } from '@/components/ParentDashboardModal';
 import { HistoryDrawer } from '@/components/HistoryDrawer';
-import { PinGate } from '@/components/PinGate';
+import { LoginScreen } from '@/components/LoginScreen';
 import { fireCelebrationConfetti, shouldCelebrate } from '@/lib/confetti';
 import { AlertCircle, Key } from 'lucide-react';
 
 export default function Home() {
-  const [unlockedPin, setUnlockedPin] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthSession | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Student State (Alessio vs Mattia)
@@ -46,16 +46,18 @@ export default function Home() {
     scrollToBottom();
   }, [messages, isStreaming]);
 
-  // Check saved PIN & Student on mount
+  // Check saved session on mount
   useEffect(() => {
     try {
-      const savedPin = localStorage.getItem('socrate_family_pin');
-      if (savedPin) {
-        setUnlockedPin(savedPin);
-      }
-      const savedStudent = localStorage.getItem('socrate_active_student') as StudentId | null;
-      if (savedStudent && (savedStudent === 'alessio' || savedStudent === 'mattia')) {
-        setCurrentStudent(savedStudent);
+      const savedAuth = localStorage.getItem('socrate_auth_session');
+      if (savedAuth) {
+        const parsed = JSON.parse(savedAuth) as AuthSession;
+        if (parsed && parsed.role && parsed.token) {
+          setCurrentUser(parsed);
+          if (parsed.role === 'alessio' || parsed.role === 'mattia') {
+            setCurrentStudent(parsed.role);
+          }
+        }
       }
     } catch {
       // LocalStorage access fallback
@@ -65,10 +67,10 @@ export default function Home() {
   }, []);
 
   // Fetch student sessions from Firestore
-  const fetchStudentSessions = useCallback(async (student: StudentId, pin: string) => {
+  const fetchStudentSessions = useCallback(async (student: StudentId, token: string) => {
     try {
       const res = await fetch(`/api/sessions?studentId=${student}`, {
-        headers: { 'x-family-pin': pin },
+        headers: { 'x-user-auth': token, 'x-family-pin': token },
       });
       const data = await res.json();
       if (res.ok && data.sessions) {
@@ -80,19 +82,39 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (unlockedPin) {
-      fetchStudentSessions(currentStudent, unlockedPin);
+    if (currentUser) {
+      fetchStudentSessions(currentStudent, currentUser.token);
     }
-  }, [unlockedPin, currentStudent, fetchStudentSessions]);
+  }, [currentUser, currentStudent, fetchStudentSessions]);
 
-  // Switch student
+  // Login handler
+  const handleLoginSuccess = (session: AuthSession) => {
+    setCurrentUser(session);
+    if (session.role === 'alessio' || session.role === 'mattia') {
+      setCurrentStudent(session.role);
+    }
+    // If logged in as parent, open parent dashboard directly!
+    if (session.role === 'parent') {
+      setIsParentDashboardOpen(true);
+    }
+  };
+
+  // Logout / Switch User
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('socrate_auth_session');
+    } catch {}
+    setCurrentUser(null);
+    setCurrentSessionId(null);
+    setMessages([]);
+    setSessions([]);
+    setIsParentDashboardOpen(false);
+  };
+
+  // Switch student (available for parent or in header)
   const handleSelectStudent = (studentId: StudentId) => {
     if (studentId === currentStudent) return;
     setCurrentStudent(studentId);
-    try {
-      localStorage.setItem('socrate_active_student', studentId);
-    } catch {}
-    // Reset active chat to fresh session for the new student
     setCurrentSessionId(null);
     setMessages([]);
     setApiError(null);
@@ -114,22 +136,12 @@ export default function Home() {
     setApiError(null);
   };
 
-  // Lock application with PIN
-  const handleLockApp = () => {
-    try {
-      localStorage.removeItem('socrate_family_pin');
-    } catch {}
-    setUnlockedPin(null);
-    setCurrentSessionId(null);
-    setMessages([]);
-  };
-
   // Load a session from history
   const handleLoadSession = async (sessionId: string) => {
-    if (!unlockedPin) return;
+    if (!currentUser) return;
     try {
       const res = await fetch(`/api/sessions/${sessionId}`, {
-        headers: { 'x-family-pin': unlockedPin },
+        headers: { 'x-user-auth': currentUser.token, 'x-family-pin': currentUser.token },
       });
       const data = await res.json();
       if (res.ok && data.session) {
@@ -144,11 +156,11 @@ export default function Home() {
 
   // Delete a session from history
   const handleDeleteSession = async (sessionId: string) => {
-    if (!unlockedPin) return;
+    if (!currentUser) return;
     try {
       await fetch(`/api/sessions/${sessionId}`, {
         method: 'DELETE',
-        headers: { 'x-family-pin': unlockedPin },
+        headers: { 'x-user-auth': currentUser.token, 'x-family-pin': currentUser.token },
       });
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       if (currentSessionId === sessionId) {
@@ -161,14 +173,15 @@ export default function Home() {
 
   // Save session to Firebase Firestore
   const saveSessionToCloud = async (sessionIdToSave: string, updatedMessages: MessageData[]) => {
-    if (!unlockedPin || updatedMessages.length === 0) return;
+    if (!currentUser || updatedMessages.length === 0) return;
     try {
       const activeStudent = STUDENTS[currentStudent];
       await fetch('/api/sessions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-family-pin': unlockedPin,
+          'x-user-auth': currentUser.token,
+          'x-family-pin': currentUser.token,
         },
         body: JSON.stringify({
           id: sessionIdToSave,
@@ -179,8 +192,7 @@ export default function Home() {
         }),
       });
 
-      // Refresh list
-      fetchStudentSessions(currentStudent, unlockedPin);
+      fetchStudentSessions(currentStudent, currentUser.token);
     } catch (e) {
       console.error('Failed to persist session to Firebase:', e);
     }
@@ -188,7 +200,7 @@ export default function Home() {
 
   // Send message
   const handleSendMessage = async (text: string, imageBase64?: string) => {
-    if ((!text.trim() && !imageBase64) || isStreaming) return;
+    if ((!text.trim() && !imageBase64) || isStreaming || !currentUser) return;
 
     setApiError(null);
 
@@ -231,7 +243,8 @@ export default function Home() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-family-pin': unlockedPin || '',
+          'x-user-auth': currentUser.token,
+          'x-family-pin': currentUser.token,
         },
         body: JSON.stringify({
           messages: newMessages.map((m) => ({
@@ -240,15 +253,14 @@ export default function Home() {
             imageUrl: m.imageUrl,
           })),
           subject: currentSubject,
-          pin: unlockedPin,
           studentName: activeStudentProfile.name,
         }),
       });
 
       if (!response.ok) {
         if (response.status === 401) {
-          handleLockApp();
-          throw new Error('PIN non valido o scaduto. Inserisci nuovamente il PIN di famiglia.');
+          handleLogout();
+          throw new Error('Sessione scaduta o non valida. Effettua nuovamente il login.');
         }
 
         const errorData = await response.json().catch(() => ({}));
@@ -318,16 +330,9 @@ export default function Home() {
     );
   }
 
-  // PIN Gate
-  if (!unlockedPin) {
-    return (
-      <PinGate
-        onUnlock={(pin) => {
-          setUnlockedPin(pin);
-          fetchStudentSessions(currentStudent, pin);
-        }}
-      />
-    );
+  // If not logged in, show LoginScreen
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
   const activeSubjectMeta = SUBJECTS[currentSubject];
@@ -338,12 +343,13 @@ export default function Home() {
       {/* Top Header */}
       <ChatHeader
         currentSubject={activeSubjectMeta}
+        currentUser={currentUser}
         currentStudent={currentStudent}
         onSelectStudent={handleSelectStudent}
         onResetChat={handleNewSession}
         onOpenHistory={() => setIsHistoryDrawerOpen(true)}
         onOpenParentDashboard={() => setIsParentDashboardOpen(true)}
-        onLockApp={handleLockApp}
+        onLogout={handleLogout}
         disabled={isStreaming}
       />
 
@@ -417,7 +423,8 @@ export default function Home() {
       <ParentDashboardModal
         isOpen={isParentDashboardOpen}
         onClose={() => setIsParentDashboardOpen(false)}
-        familyPin={unlockedPin}
+        authToken={currentUser.token}
+        isParentRole={currentUser.role === 'parent'}
       />
 
       {/* Pedagogical Info Modal */}
