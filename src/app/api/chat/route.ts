@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       apiKey,
     });
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
     const systemPrompt = buildSocraticSystemPrompt(subject);
 
     // 3. Conversione messaggi per modello con supporto multimodale foto
