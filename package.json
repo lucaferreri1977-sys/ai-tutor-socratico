@@ -1,5 +1,5 @@
 {
-  "name": "ai-tutor-temp",
+  "name": "ai-tutor-socratico",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,9 +9,20 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.127",
+    "@ai-sdk/react": "^3.0.295",
+    "@google/genai": "^2.24.0",
+    "@types/canvas-confetti": "^1.9.0",
+    "ai": "^6.0.292",
+    "canvas-confetti": "^1.9.4",
+    "katex": "^0.18.9",
+    "lucide-react": "^1.48.0",
     "next": "16.3.6",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
