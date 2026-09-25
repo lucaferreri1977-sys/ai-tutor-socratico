@@ -15,11 +15,28 @@ interface ClientMessage {
 
 export async function POST(req: Request) {
   try {
-    const { messages, subject = 'matematica' } = (await req.json()) as {
+    const rawBody = await req.json();
+    const { messages, subject = 'matematica', pin } = rawBody as {
       messages: ClientMessage[];
       subject: SubjectId;
+      pin?: string;
     };
 
+    // 1. Verifica PIN di Famiglia
+    const expectedPin = process.env.FAMILY_PIN || '240813';
+    const clientPin = req.headers.get('x-family-pin') || pin;
+
+    if (!clientPin || clientPin.trim() !== expectedPin.trim()) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'Accesso protetto: PIN di famiglia non valido o non fornito. Inserisci il PIN per utilizzare Socrate.',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. Verifica Chiave API Gemini
     const apiKey =
       process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
       process.env.GEMINI_API_KEY;
@@ -28,7 +45,7 @@ export async function POST(req: Request) {
       return new Response(
         JSON.stringify({
           error:
-            'Chiave API Google Gemini non trovata! Aggiungi GOOGLE_GENERATIVE_AI_API_KEY nel tuo file .env.local per iniziare.',
+            'Chiave API Google Gemini non trovata! Aggiungi GOOGLE_GENERATIVE_AI_API_KEY nelle impostazioni del server.',
         }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
@@ -41,7 +58,7 @@ export async function POST(req: Request) {
     const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     const systemPrompt = buildSocraticSystemPrompt(subject);
 
-    // Convert client messages to model messages with multimodal support
+    // 3. Conversione messaggi per modello con supporto multimodale foto
     const modelMessages = messages.map((msg, index) => {
       const isLatestUserMessage =
         index === messages.length - 1 && msg.role === 'user';
@@ -50,7 +67,12 @@ export async function POST(req: Request) {
         return {
           role: 'user' as const,
           content: [
-            { type: 'text' as const, text: msg.content || 'Ho caricato questa foto del mio compito. Aiutami a capire come procedere senza darmi la soluzione diretta.' },
+            {
+              type: 'text' as const,
+              text:
+                msg.content ||
+                'Ho caricato questa foto del mio compito. Aiutami a capire come procedere senza darmi la soluzione diretta.',
+            },
             { type: 'image' as const, image: msg.imageUrl },
           ],
         };
@@ -72,7 +94,10 @@ export async function POST(req: Request) {
     return result.toTextStreamResponse();
   } catch (error: unknown) {
     console.error('Chat API Error:', error);
-    const message = error instanceof Error ? error.message : 'Errore imprevisto durante l\'elaborazione della risposta.';
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Errore imprevisto durante l\'elaborazione della risposta.';
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

@@ -8,10 +8,14 @@ import { ChatMessage, MessageData } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
 import { SubjectWelcome } from '@/components/SubjectWelcome';
 import { ParentModal } from '@/components/ParentModal';
+import { PinGate } from '@/components/PinGate';
 import { fireCelebrationConfetti, shouldCelebrate } from '@/lib/confetti';
 import { AlertCircle, Key } from 'lucide-react';
 
 export default function Home() {
+  const [unlockedPin, setUnlockedPin] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
   const [currentSubject, setCurrentSubject] = useState<SubjectId>('matematica');
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -19,6 +23,20 @@ export default function Home() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check saved PIN on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('socrate_family_pin');
+      if (saved) {
+        setUnlockedPin(saved);
+      }
+    } catch {
+      // LocalStorage access might fail in private browsing
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -31,7 +49,6 @@ export default function Home() {
   const handleSelectSubject = (newSubject: SubjectId) => {
     if (newSubject === currentSubject) return;
     setCurrentSubject(newSubject);
-    // Reset conversation for new subject
     setMessages([]);
     setApiError(null);
   };
@@ -42,6 +59,14 @@ export default function Home() {
     }
     setMessages([]);
     setApiError(null);
+  };
+
+  const handleLockApp = () => {
+    try {
+      localStorage.removeItem('socrate_family_pin');
+    } catch {}
+    setUnlockedPin(null);
+    setMessages([]);
   };
 
   const handleSendMessage = async (text: string, imageBase64?: string) => {
@@ -78,7 +103,10 @@ export default function Home() {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-family-pin': unlockedPin || '',
+        },
         body: JSON.stringify({
           messages: newMessages.map((m) => ({
             role: m.role,
@@ -86,10 +114,17 @@ export default function Home() {
             imageUrl: m.imageUrl,
           })),
           subject: currentSubject,
+          pin: unlockedPin,
         }),
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // If PIN became invalid, lock app
+          handleLockApp();
+          throw new Error('PIN non valido o scaduto. Inserisci nuovamente il PIN di famiglia.');
+        }
+
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
           errorData.error || `Errore del server (${response.status}) durante la richiesta.`
@@ -133,6 +168,22 @@ export default function Home() {
     }
   };
 
+  // While checking local storage PIN
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-600 flex items-center justify-center text-2xl animate-pulse">
+          🦉
+        </div>
+      </div>
+    );
+  }
+
+  // If not unlocked with PIN, show PIN gate
+  if (!unlockedPin) {
+    return <PinGate onUnlock={(pin) => setUnlockedPin(pin)} />;
+  }
+
   const activeSubjectMeta = SUBJECTS[currentSubject];
 
   return (
@@ -142,6 +193,7 @@ export default function Home() {
         currentSubject={activeSubjectMeta}
         onResetChat={handleResetChat}
         onOpenParentModal={() => setIsParentModalOpen(true)}
+        onLockApp={handleLockApp}
         disabled={isStreaming}
       />
 

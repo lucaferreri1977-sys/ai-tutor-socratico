@@ -2,12 +2,13 @@
 
 import React from 'react';
 import { SubjectMeta } from '@/lib/types';
-import { RotateCcw, ShieldCheck, Sparkles } from 'lucide-react';
+import { RotateCcw, ShieldCheck, Sparkles, Lock } from 'lucide-react';
 
 interface ChatHeaderProps {
   currentSubject: SubjectMeta;
   onResetChat: () => void;
   onOpenParentModal: () => void;
+  onLockApp?: () => void;
   disabled?: boolean;
 }
 
@@ -15,6 +16,7 @@ export function ChatHeader({
   currentSubject,
   onResetChat,
   onOpenParentModal,
+  onLockApp,
   disabled = false,
 }: ChatHeaderProps) {
   return (
@@ -54,6 +56,17 @@ export function ChatHeader({
             <ShieldCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
             <span className="hidden md:inline">Spazio Genitori</span>
           </button>
+
+          {/* Blocca aula */}
+          {onLockApp && (
+            <button
+              onClick={onLockApp}
+              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-950/60 text-slate-600 dark:text-slate-400 hover:text-amber-700 transition-colors cursor-pointer"
+              title="Blocca aula con PIN"
+            >
+              <Lock className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Reset chat */}
           <button
