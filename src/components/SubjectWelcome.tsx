@@ -6,10 +6,11 @@ import { Camera, Sparkles, BookOpen, Lightbulb } from 'lucide-react';
 
 interface SubjectWelcomeProps {
   subject: SubjectMeta;
+  studentName?: string;
   onSelectPrompt: (prompt: string) => void;
 }
 
-export function SubjectWelcome({ subject, onSelectPrompt }: SubjectWelcomeProps) {
+export function SubjectWelcome({ subject, studentName = 'Ragazzo', onSelectPrompt }: SubjectWelcomeProps) {
   return (
     <div className="max-w-2xl mx-auto my-6 px-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Hero Welcome Card */}
@@ -20,10 +21,10 @@ export function SubjectWelcome({ subject, onSelectPrompt }: SubjectWelcomeProps)
 
         <div className="space-y-1">
           <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">
-            Studio di {subject.name}
+            Ciao {studentName}! Studio di {subject.name}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            {subject.description}
+            Sono Socrate, il tuo tutor su <strong className="font-semibold text-slate-700 dark:text-slate-300">AI Tutor Socratico</strong>. {subject.description}
           </p>
         </div>
 

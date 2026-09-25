@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Socrate - Tutor AI Socratico per le Scuole Medie',
+  title: 'AI Tutor Socratico - Studia con Socrate',
   description:
-    'Un tutor didattico empatico che guida gli studenti delle medie (11-14 anni) nello studio di tutte le materie curricolari con il metodo socratico, senza mai dare le risposte pronte.',
+    'AI Tutor Socratico: una guida didattica empatica per studenti delle scuole medie (Alessio e Mattia) per tutte le materie curricolari con il metodo socratico.',
 };
 
 export default function RootLayout({

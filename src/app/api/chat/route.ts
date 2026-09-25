@@ -16,10 +16,11 @@ interface ClientMessage {
 export async function POST(req: Request) {
   try {
     const rawBody = await req.json();
-    const { messages, subject = 'matematica', pin } = rawBody as {
+    const { messages, subject = 'matematica', pin, studentName = 'Studente' } = rawBody as {
       messages: ClientMessage[];
       subject: SubjectId;
       pin?: string;
+      studentName?: string;
     };
 
     // 1. Verifica PIN di Famiglia
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
     });
 
     const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-    const systemPrompt = buildSocraticSystemPrompt(subject);
+    const systemPrompt = buildSocraticSystemPrompt(subject, studentName);
 
     // 3. Conversione messaggi per modello con supporto multimodale foto
     const modelMessages = messages.map((msg, index) => {

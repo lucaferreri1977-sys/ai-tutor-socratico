@@ -132,13 +132,16 @@ const SUBJECT_DIRECTIVES: Record<SubjectId, string> = {
 `,
 };
 
-export function buildSocraticSystemPrompt(subjectId: SubjectId): string {
+export function buildSocraticSystemPrompt(subjectId: SubjectId, studentName?: string): string {
   const subject = SUBJECTS[subjectId];
   const directive = SUBJECT_DIRECTIVES[subjectId] || '';
+  const studentInfo = studentName
+    ? `\n# STUDENTE ATTUALE\nStai parlando e studiando con **${studentName}**, un ragazzo delle scuole medie. Rivolgiti a lui chiamandolo affettuosamente per nome quando opportuno, incoraggiandolo sempre.\n`
+    : '';
 
   return `
 ${BASE_SOCRATIC_PROMPT}
-
+${studentInfo}
 # MATERIA ATTUALE: ${subject.name.toUpperCase()} (${subject.category})
 ${directive}
 `.trim();

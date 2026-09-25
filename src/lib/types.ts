@@ -16,10 +16,51 @@ export interface SubjectMeta {
   name: string;
   category: 'STEM' | 'Umanistica' | 'Lingue' | 'Arte & Tecnica';
   emoji: string;
-  color: string; // Tailwind color class for borders / pills
+  color: string;
   bgColor: string;
   description: string;
   quickPrompts: string[];
+}
+
+export type StudentId = 'alessio' | 'mattia';
+
+export interface StudentProfile {
+  id: StudentId;
+  name: string;
+  avatar: string;
+  grade: string;
+  themeColor: string;
+  welcomeMessage: string;
+}
+
+export const STUDENTS: Record<StudentId, StudentProfile> = {
+  alessio: {
+    id: 'alessio',
+    name: 'Alessio',
+    avatar: '👦',
+    grade: 'Scuola Media',
+    themeColor: 'sky',
+    welcomeMessage: 'Ciao Alessio! Sono Socrate, pronto a darti una mano con i compiti. Cosa studiamo oggi?',
+  },
+  mattia: {
+    id: 'mattia',
+    name: 'Mattia',
+    avatar: '🧒',
+    grade: 'Scuola Media',
+    themeColor: 'indigo',
+    welcomeMessage: 'Ciao Mattia! Sono Socrate, il tuo compagno di studio. Su quale argomento ci concentriamo?',
+  },
+};
+
+export interface ChatSessionSummary {
+  id: string;
+  studentId: StudentId;
+  studentName: string;
+  subject: SubjectId;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
 }
 
 export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
