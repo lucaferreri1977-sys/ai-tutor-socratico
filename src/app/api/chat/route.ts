@@ -89,6 +89,7 @@ export async function POST(req: Request) {
       system: systemPrompt,
       messages: modelMessages,
       temperature: 0.35, // disciplined pedagogical focus
+      maxTokens: 800, // tetto massimo per risposta (impossibile consumare troppi token)
     });
 
     return result.toTextStreamResponse();
