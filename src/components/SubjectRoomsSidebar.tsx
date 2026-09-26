@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary, QuizTestRecord } from '@/lib/types';
-import { Plus, MessageSquare, PanelLeftClose, Award, ChevronRight } from 'lucide-react';
+import { Plus, MessageSquare, Award, ChevronRight } from 'lucide-react';
 
 interface SubjectRoomsSidebarProps {
   isOpen: boolean;
@@ -67,29 +67,8 @@ export function SubjectRoomsSidebar({
           isOpen ? 'translate-x-0' : '-translate-x-full md:-ml-72 sm:md:-ml-80'
         }`}
       >
-        {/* Top Header - Semplice, pulito */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-200/70 dark:border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-xs text-base">
-              🦉
-            </div>
-            <div>
-              <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight">
-                Stanze di Studio
-              </h2>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Chiudi menu"
-          >
-            <PanelLeftClose className="w-5 h-5" />
-          </button>
-        </div>
-
         {/* Scrollable Navigation */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 pt-4 space-y-4">
           {/* SECTION 1: STANZE DELLE MATERIE */}
           <div className="space-y-1">
             <div className="px-2 pb-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">

@@ -22,7 +22,6 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       name: 'Alessio',
       avatar: '👦',
       color: 'from-sky-500 to-blue-600',
-      tag: 'Scuola Media',
       subtitle: 'Accedi al tuo spazio studio con Socrate',
     },
     {
@@ -30,7 +29,6 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       name: 'Mattia',
       avatar: '🧒',
       color: 'from-indigo-500 to-purple-600',
-      tag: 'Scuola Media',
       subtitle: 'Accedi al tuo spazio studio con Socrate',
     },
     {
@@ -140,9 +138,11 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       <h2 className="font-bold text-base text-slate-900 dark:text-slate-100">
                         {p.name}
                       </h2>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                        {p.tag}
-                      </span>
+                      {p.tag && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                          {p.tag}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {p.subtitle}

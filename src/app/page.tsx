@@ -389,19 +389,11 @@ export default function Home() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header */}
         <ChatHeader
-          currentSubject={currentSubject}
           currentUser={currentUser}
           currentStudent={currentStudent}
-          onSelectStudent={handleSelectStudent}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
-          onOpenQuiz={() => setIsQuizModalOpen(true)}
-          onOpenTestHistory={() => {
-            setSelectedQuizForModal(null);
-            setIsTestHistoryOpen(true);
-          }}
           onLogout={handleLogout}
           disabled={isStreaming}
-          testCount={studentQuizzes.length}
         />
 
         {/* Error Alert Banner */}
