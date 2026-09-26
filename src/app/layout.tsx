@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     'AI Tutor Socratico: una guida didattica empatica per studenti delle scuole medie (Alessio e Mattia) per tutte le materie curricolari con il metodo socratico.',
   icons: {
     icon: [
-      { url: '/favicon.ico?v=20260927', sizes: 'any' },
-      { url: '/icon.png?v=20260927', sizes: '64x64', type: 'image/png' },
-      { url: '/icon.svg?v=20260927', type: 'image/svg+xml' },
+      { url: '/favicon.ico?v=socrate_owl', sizes: 'any' },
+      { url: '/icon.png?v=socrate_owl', sizes: '64x64', type: 'image/png' },
+      { url: '/icon.svg?v=socrate_owl', type: 'image/svg+xml' },
     ],
-    shortcut: '/favicon.ico?v=20260927',
+    shortcut: '/favicon.ico?v=socrate_owl',
     apple: [
-      { url: '/apple-icon.png?v=20260927', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-icon.png?v=socrate_owl', sizes: '180x180', type: 'image/png' },
     ],
   },
 };
