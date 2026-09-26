@@ -64,7 +64,7 @@ export interface ChatSessionSummary {
   id: string;
   studentId: StudentId;
   studentName: string;
-  subject: SubjectId;
+  subject?: string;
   title: string;
   createdAt: string;
   updatedAt: string;

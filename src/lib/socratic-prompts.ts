@@ -138,17 +138,71 @@ const SUBJECT_DIRECTIVES: Record<SubjectId, string> = {
 `,
 };
 
-export function buildSocraticSystemPrompt(subjectId: SubjectId, studentName?: string): string {
-  const subject = SUBJECTS[subjectId];
-  const directive = SUBJECT_DIRECTIVES[subjectId] || '';
+const ALL_SUBJECT_GUIDELINES = `
+# LINEE GUIDA DISCIPLINARI (ADATTAMENTO AUTOMATICO ALL'ARGOMENTO DELLO STUDENTE)
+Identifica sempre con precisione la materia della richiesta dello studente e adotta il metodo maieutico corrispondente:
+
+1. MATEMATICA E GEOMETRIA:
+- Non calcolare mai per lui.
+- Fasi fisse: 1. Comprensione dati noti e incognita -> 2. Strategia/Formula -> 3. Calcolo dello studente -> 4. Verifica di senso.
+- Formule matematiche sempre in LaTeX: inline $...$, display $$...$$.
+
+2. ITALIANO - GRAMMATICA E ANALISI LOGICA:
+- Non analizzare l'intera frase in un colpo solo.
+- Guida con la sequenza: 1. Trova il verbo (predicato) -> 2. Trova il soggetto -> 3. Analizza i complementi uno alla volta con le domande guida ("A quale domanda risponde?").
+
+3. ITALIANO - TEMI E SCRITTURA:
+- REGOLA ASSOLUTA: NON SCRIVERE MAI PARAGRAFI DEL TEMA.
+- Aiutalo a costruire la scaletta (Introduzione, Svolgimento in 2-3 punti chiave, Conclusione) facendogli domande maieutiche sulle sue idee ed esperienze personali.
+
+4. SCIENZE DELLA TERRA E BIOLOGIA:
+- Metodo scientifico: Ipotesi, osservazione, spiegazione.
+- Spiega con analogie intuitive della vita quotidiana (es. la cellula come una città con le sue fabbriche).
+
+5. STORIA:
+- Focalizzati sul nesso CAUSA -> FATTO -> CONSEGUENZA.
+- Distingui causa profonda e causa scatenante, collocando gli eventi sulla linea temporale.
+
+6. GEOGRAFIA:
+- Schema: 1. Territorio e morfologia -> 2. Popolazione e città -> 3. Economia (settori primario, secondario, terziario).
+- Stimola l'interpretazione delle carte geografiche e delle relazioni uomo-ambiente.
+
+7. LINGUE STRANIERE (INGLESE / FRANCESE - A1-B1):
+- Piccoli dialoghi guidati, correzioni dolci con suggerimenti di regole e pratica attiva.
+
+8. TECNOLOGIA, MUSICA E ARTE:
+- Tecnologia: proiezioni ortogonali, proprietà dei materiali, fonti energetiche.
+- Musica: lettura note, ritmi, frazioni musicali, strumenti e compositori.
+- Arte: lettura visiva (soggetto, colori, luce, prospettiva ed epoca).
+`;
+
+export function buildSocraticSystemPrompt(arg1?: any, arg2?: any): string {
+  // Support both (studentName, subjectId) and legacy (subjectId, studentName)
+  let studentName: string | undefined;
+  let subjectId: SubjectId | undefined;
+
+  if (typeof arg1 === 'string' && (arg1 === 'alessio' || arg1 === 'mattia' || arg1 === 'Alessio' || arg1 === 'Mattia')) {
+    studentName = arg1;
+    subjectId = arg2 as SubjectId | undefined;
+  } else if (typeof arg1 === 'string' && SUBJECTS[arg1 as SubjectId]) {
+    subjectId = arg1 as SubjectId;
+    studentName = typeof arg2 === 'string' ? arg2 : undefined;
+  } else if (typeof arg1 === 'string') {
+    studentName = arg1;
+  }
+
   const studentInfo = studentName
-    ? `\n# STUDENTE ATTUALE\nStai parlando e studiando con **${studentName}**, un ragazzo delle scuole medie. Rivolgiti a lui chiamandolo affettuosamente per nome quando opportuno, incoraggiandolo sempre.\n`
+    ? `\n# STUDENTE ATTUALE\nStai parlando e studiando con **${studentName}**, un ragazzo delle scuole medie (11-14 anni). Rivolgiti a lui chiamandolo affettuosamente per nome quando opportuno, incoraggiandolo sempre con calore e pazienza.\n`
+    : '';
+
+  const specificDirective = subjectId && SUBJECT_DIRECTIVES[subjectId]
+    ? `\n# FOCUS PREVALENTE RICHIESTO: ${SUBJECTS[subjectId].name.toUpperCase()}\n${SUBJECT_DIRECTIVES[subjectId]}\n`
     : '';
 
   return `
 ${BASE_SOCRATIC_PROMPT}
 ${studentInfo}
-# MATERIA ATTUALE: ${subject.name.toUpperCase()} (${subject.category})
-${directive}
+${ALL_SUBJECT_GUIDELINES}
+${specificDirective}
 `.trim();
 }

@@ -1,15 +1,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary, AuthSession } from '@/lib/types';
-import { SubjectSelector } from '@/components/SubjectSelector';
+import { StudentId, STUDENTS, ChatSessionSummary, AuthSession } from '@/lib/types';
 import { ChatHeader } from '@/components/ChatHeader';
 import { ChatMessage, MessageData } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
-import { SubjectWelcome } from '@/components/SubjectWelcome';
+import { GeminiWelcome } from '@/components/GeminiWelcome';
+import { GeminiSidebar } from '@/components/GeminiSidebar';
 import { ParentModal } from '@/components/ParentModal';
 import { ParentDashboardModal } from '@/components/ParentDashboardModal';
-import { HistoryDrawer } from '@/components/HistoryDrawer';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fireCelebrationConfetti, shouldCelebrate } from '@/lib/confetti';
 import { AlertCircle, Key } from 'lucide-react';
@@ -21,19 +20,20 @@ export default function Home() {
   // Student State (Alessio vs Mattia)
   const [currentStudent, setCurrentStudent] = useState<StudentId>('alessio');
 
-  // Active Chat & Subject
-  const [currentSubject, setCurrentSubject] = useState<SubjectId>('matematica');
+  // Active Chat Session
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  // Modals & Drawers
+  // Gemini Sidebar (open by default on desktop, collapsible)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Modals
   const [isParentModalOpen, setIsParentModalOpen] = useState(false);
   const [isParentDashboardOpen, setIsParentDashboardOpen] = useState(false);
-  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Saved sessions for active student
+  // Saved sessions for active student from Firestore
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -45,6 +45,13 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isStreaming]);
+
+  // Set initial sidebar state based on screen width on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsSidebarOpen(window.innerWidth >= 1024);
+    }
+  }, []);
 
   // Check saved session on mount
   useEffect(() => {
@@ -93,7 +100,6 @@ export default function Home() {
     if (session.role === 'alessio' || session.role === 'mattia') {
       setCurrentStudent(session.role);
     }
-    // If logged in as parent, open parent dashboard directly!
     if (session.role === 'parent') {
       setIsParentDashboardOpen(true);
     }
@@ -111,7 +117,7 @@ export default function Home() {
     setIsParentDashboardOpen(false);
   };
 
-  // Switch student (available for parent or in header)
+  // Switch student (available for parent in header or sidebar)
   const handleSelectStudent = (studentId: StudentId) => {
     if (studentId === currentStudent) return;
     setCurrentStudent(studentId);
@@ -120,16 +126,7 @@ export default function Home() {
     setApiError(null);
   };
 
-  // Switch subject
-  const handleSelectSubject = (newSubject: SubjectId) => {
-    if (newSubject === currentSubject) return;
-    setCurrentSubject(newSubject);
-    setCurrentSessionId(null);
-    setMessages([]);
-    setApiError(null);
-  };
-
-  // Reset / New session
+  // Reset / New Chat (Gemini "+ Nuova chat")
   const handleNewSession = () => {
     setCurrentSessionId(null);
     setMessages([]);
@@ -146,7 +143,6 @@ export default function Home() {
       const data = await res.json();
       if (res.ok && data.session) {
         setCurrentSessionId(data.session.id);
-        setCurrentSubject(data.session.subject || 'matematica');
         setMessages(data.session.messages || []);
       }
     } catch (e) {
@@ -187,7 +183,6 @@ export default function Home() {
           id: sessionIdToSave,
           studentId: currentStudent,
           studentName: activeStudent.name,
-          subject: currentSubject,
           messages: updatedMessages,
         }),
       });
@@ -252,29 +247,22 @@ export default function Home() {
             content: m.content,
             imageUrl: m.imageUrl,
           })),
-          subject: currentSubject,
           studentName: activeStudentProfile.name,
         }),
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          handleLogout();
-          throw new Error('Sessione scaduta o non valida. Effettua nuovamente il login.');
-        }
-
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `Errore del server (${response.status}) durante la richiesta.`
-        );
+        throw new Error(errorData.error || `Errore del server (${response.status})`);
       }
 
       if (!response.body) {
-        throw new Error('Il server non ha restituito uno stream di dati.');
+        throw new Error('Nessun flusso di risposta ricevuto dal server.');
       }
 
+      // Stream handling
       const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
+      const decoder = new TextDecoder();
       let accumulatedText = '';
 
       while (true) {
@@ -291,7 +279,6 @@ export default function Home() {
         );
       }
 
-      // Final complete messages array
       const completedMessages: MessageData[] = [
         ...newMessages,
         {
@@ -335,89 +322,85 @@ export default function Home() {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
-  const activeSubjectMeta = SUBJECTS[currentSubject];
   const activeStudentProfile = STUDENTS[currentStudent];
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-100/60 dark:bg-slate-950">
-      {/* Top Header */}
-      <ChatHeader
-        currentSubject={activeSubjectMeta}
+    <div className="flex h-screen overflow-hidden bg-slate-100/60 dark:bg-slate-950">
+      {/* Gemini History Sidebar */}
+      <GeminiSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
         currentUser={currentUser}
         currentStudent={currentStudent}
         onSelectStudent={handleSelectStudent}
-        onResetChat={handleNewSession}
-        onOpenHistory={() => setIsHistoryDrawerOpen(true)}
-        onOpenParentDashboard={() => setIsParentDashboardOpen(true)}
-        onLogout={handleLogout}
-        disabled={isStreaming}
-      />
-
-      {/* Horizontal Subject Bar */}
-      <SubjectSelector
-        currentSubject={currentSubject}
-        onSelectSubject={handleSelectSubject}
-        disabled={isStreaming}
-      />
-
-      {/* Error alert banner */}
-      {apiError && (
-        <div className="bg-amber-50 dark:bg-amber-950/60 border-b border-amber-200 dark:border-amber-800/60 px-4 py-3 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-            <span>{apiError}</span>
-          </div>
-          <button
-            onClick={() => setIsParentModalOpen(true)}
-            className="text-xs font-semibold underline hover:text-amber-950 dark:hover:text-amber-100 flex items-center gap-1 cursor-pointer flex-shrink-0"
-          >
-            <Key className="w-3.5 h-3.5" /> Informazioni
-          </button>
-        </div>
-      )}
-
-      {/* Main Chat Stream Container */}
-      <main className="flex-1 overflow-y-auto max-w-4xl w-full mx-auto flex flex-col justify-between">
-        <div className="flex-1">
-          {messages.length === 0 ? (
-            <SubjectWelcome
-              subject={activeSubjectMeta}
-              studentName={activeStudentProfile.name}
-              onSelectPrompt={(prompt) => handleSendMessage(prompt)}
-            />
-          ) : (
-            <div className="py-4 space-y-1">
-              {messages.map((message) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  isStreaming={isStreaming && message.role === 'assistant' && !message.content}
-                />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Bottom Fixed Chat Input */}
-      <ChatInput
-        onSendMessage={handleSendMessage}
-        disabled={isStreaming}
-        quickPrompts={activeSubjectMeta.quickPrompts}
-      />
-
-      {/* History Slide-over Drawer */}
-      <HistoryDrawer
-        isOpen={isHistoryDrawerOpen}
-        onClose={() => setIsHistoryDrawerOpen(false)}
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        studentName={activeStudentProfile.name}
         onSelectSession={handleLoadSession}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
+        onOpenParentDashboard={() => setIsParentDashboardOpen(true)}
+        onLogout={handleLogout}
       />
+
+      {/* Main App Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Top Header */}
+        <ChatHeader
+          currentUser={currentUser}
+          currentStudent={currentStudent}
+          onSelectStudent={handleSelectStudent}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+          onResetChat={handleNewSession}
+          onOpenParentDashboard={() => setIsParentDashboardOpen(true)}
+          onLogout={handleLogout}
+          disabled={isStreaming}
+        />
+
+        {/* Error Alert Banner */}
+        {apiError && (
+          <div className="bg-amber-50 dark:bg-amber-950/60 border-b border-amber-200 dark:border-amber-800/60 px-4 py-2.5 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 max-w-4xl mx-auto">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>{apiError}</span>
+            </div>
+            <button
+              onClick={() => setIsParentModalOpen(true)}
+              className="text-xs font-semibold underline hover:text-amber-950 dark:hover:text-amber-100 flex items-center gap-1 cursor-pointer flex-shrink-0"
+            >
+              <Key className="w-3.5 h-3.5" /> Informazioni
+            </button>
+          </div>
+        )}
+
+        {/* Chat / Welcome Area */}
+        <main className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 flex flex-col justify-between">
+          <div className="flex-1 max-w-4xl w-full mx-auto">
+            {messages.length === 0 ? (
+              <GeminiWelcome
+                studentName={activeStudentProfile.name}
+                onSelectPrompt={(prompt) => handleSendMessage(prompt)}
+              />
+            ) : (
+              <div className="py-4 space-y-2">
+                {messages.map((message) => (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    isStreaming={isStreaming && message.role === 'assistant' && !message.content}
+                  />
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Bottom Chat Input */}
+        <ChatInput
+          onSendMessage={handleSendMessage}
+          disabled={isStreaming}
+        />
+      </div>
 
       {/* Area Riservata Genitori Modal */}
       <ParentDashboardModal
