@@ -160,10 +160,6 @@ export function PinGate({ onUnlock }: PinGateProps) {
             </label>
           </div>
         </form>
-
-        <div className="text-[11px] text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3">
-          Accesso riservato alla famiglia • Protezione API attiva 🛡️
-        </div>
       </div>
     </div>
   );
