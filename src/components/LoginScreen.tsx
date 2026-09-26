@@ -116,35 +116,29 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
         {!selectedRole ? (
           /* Profile Selection Cards */
-          <div className="space-y-3 pt-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Chi sta per studiare oggi?
-            </p>
-
-            <div className="space-y-2.5">
-              {profiles.map((p) => (
-                <button
-                  key={p.role}
-                  type="button"
-                  onClick={() => handleSelectRole(p.role)}
-                  className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 hover:bg-sky-50/80 dark:hover:bg-slate-700/60 border border-slate-200 dark:border-slate-700 hover:border-sky-300 dark:hover:border-sky-600 transition-all flex items-center gap-3.5 group cursor-pointer text-left shadow-2xs hover:scale-101"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform flex-shrink-0">
-                    {p.avatar}
+          <div className="space-y-2.5 pt-2">
+            {profiles.map((p) => (
+              <button
+                key={p.role}
+                type="button"
+                onClick={() => handleSelectRole(p.role)}
+                className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 hover:bg-sky-50/80 dark:hover:bg-slate-700/60 border border-slate-200 dark:border-slate-700 hover:border-sky-300 dark:hover:border-sky-600 transition-all flex items-center gap-3.5 group cursor-pointer text-left shadow-2xs hover:scale-101"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform flex-shrink-0">
+                  {p.avatar}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-bold text-base text-slate-900 dark:text-slate-100">
+                      {p.name}
+                    </h2>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h2 className="font-bold text-base text-slate-900 dark:text-slate-100">
-                        {p.name}
-                      </h2>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                      {p.subtitle}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    {p.subtitle}
+                  </p>
+                </div>
+              </button>
+            ))}
           </div>
         ) : (
           /* Password Input Form for Chosen Profile */
