@@ -126,7 +126,7 @@ export function SubjectRoomsSidebar({
                     className={`flex-1 py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       activeTab === 'chats'
                         ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
                     }`}
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
@@ -142,7 +142,7 @@ export function SubjectRoomsSidebar({
                     className={`flex-1 py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       activeTab === 'quizzes'
                         ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
                     }`}
                   >
                     <Award className="w-3.5 h-3.5 text-amber-500" />
