@@ -21,21 +21,28 @@ export async function GET(req: NextRequest) {
       query = query.where('studentId', '==', studentId);
     }
 
-    const snapshot = await query.orderBy('updatedAt', 'desc').limit(50).get();
+    const snapshot = await query.get();
 
-    const sessions = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        studentId: data.studentId,
-        studentName: data.studentName,
-        subject: data.subject,
-        title: data.title || 'Sessione di studio',
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-        messageCount: Array.isArray(data.messages) ? data.messages.length : 0,
-      };
-    });
+    const sessions = snapshot.docs
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          studentId: data.studentId,
+          studentName: data.studentName,
+          subject: data.subject,
+          title: data.title || 'Conversazione con Socrate',
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          messageCount: Array.isArray(data.messages) ? data.messages.length : 0,
+        };
+      })
+      .sort((a, b) => {
+        const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return timeB - timeA;
+      })
+      .slice(0, 50);
 
     return new Response(JSON.stringify({ sessions }), {
       status: 200,
