@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       system: systemPrompt,
       messages: modelMessages,
       temperature: 0.35, // disciplined pedagogical focus
-      maxOutputTokens: 800, // tetto massimo per risposta (impossibile consumare troppi token)
+      maxOutputTokens: 2048, // capiente per riassunti didattici strutturati e spiegazioni di studio complete
     });
 
     return result.toTextStreamResponse();
