@@ -72,12 +72,7 @@ export function SubjectRoomsSidebar({
         {/* Scrollable Navigation */}
         <div className="flex-1 overflow-y-auto p-3 pt-4 space-y-4">
           {/* SECTION 1: STANZE DELLE MATERIE */}
-          <div className="space-y-1">
-            <div className="px-2 pb-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              Materie
-            </div>
-
-            <div className="space-y-0.5">
+          <div className="space-y-0.5">
               {subjectList.map((subj) => {
                 const isSelected = currentSubject === subj.id;
                 return (
@@ -106,7 +101,6 @@ export function SubjectRoomsSidebar({
                 );
               })}
             </div>
-          </div>
 
           {/* SECTION 2: ATTIVITÀ (Visibile SOLO quando una materia è selezionata) */}
           <div className="space-y-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
