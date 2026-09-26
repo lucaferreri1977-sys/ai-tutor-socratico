@@ -10,12 +10,6 @@ interface ChatHeaderProps {
   onToggleSidebar: () => void;
   onLogout: () => void;
   disabled?: boolean;
-  // Optional legacy props kept for backward-compatibility
-  currentSubject?: any;
-  onSelectStudent?: (student: StudentId) => void;
-  onOpenQuiz?: () => void;
-  onOpenTestHistory?: () => void;
-  testCount?: number;
 }
 
 export function ChatHeader({
