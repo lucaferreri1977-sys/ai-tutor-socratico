@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
-import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary } from '@/lib/types';
-import { Plus, Trash2, MessageSquare, PanelLeftClose, Award, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary, QuizTestRecord } from '@/lib/types';
+import { Plus, MessageSquare, PanelLeftClose, Award, ChevronRight } from 'lucide-react';
 
 interface SubjectRoomsSidebarProps {
   isOpen: boolean;
@@ -13,9 +13,11 @@ interface SubjectRoomsSidebarProps {
   currentSessionId: string | null;
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
-  onDeleteSession: (id: string) => void;
   onOpenQuiz: () => void;
+  onOpenTestHistory: () => void;
+  onSelectQuizDetail?: (quiz: QuizTestRecord) => void;
   currentStudent: StudentId;
+  quizzes?: QuizTestRecord[];
 }
 
 export function SubjectRoomsSidebar({
@@ -27,10 +29,14 @@ export function SubjectRoomsSidebar({
   currentSessionId,
   onSelectSession,
   onNewSession,
-  onDeleteSession,
   onOpenQuiz,
+  onOpenTestHistory,
+  onSelectQuizDetail,
   currentStudent,
+  quizzes = [],
 }: SubjectRoomsSidebarProps) {
+  const [activeTab, setActiveTab] = useState<'chats' | 'quizzes'>('chats');
+
   const activeStudentProfile = STUDENTS[currentStudent];
   const subjectList = Object.values(SUBJECTS);
 
@@ -39,9 +45,15 @@ export function SubjectRoomsSidebar({
     ? sessions.filter((s) => s.subject === currentSubject || !s.subject)
     : sessions;
 
+  // Filter quizzes for current student (and current subject if selected)
+  const studentQuizzes = quizzes.filter((q) => q.studentId === currentStudent);
+  const visibleQuizzes = currentSubject
+    ? studentQuizzes.filter((q) => q.subject === currentSubject)
+    : studentQuizzes;
+
   return (
     <>
-      {/* Mobile Backdrop (when open on smartphone) */}
+      {/* Mobile Backdrop */}
       {isOpen && (
         <div
           onClick={onClose}
@@ -55,7 +67,7 @@ export function SubjectRoomsSidebar({
           isOpen ? 'translate-x-0' : '-translate-x-full md:-ml-72 sm:md:-ml-80'
         }`}
       >
-        {/* Top Header */}
+        {/* Top Header - Semplice, pulito */}
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-200/70 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-xs text-base">
@@ -63,10 +75,10 @@ export function SubjectRoomsSidebar({
             </div>
             <div>
               <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight">
-                AI Tutor Socratico
+                Stanze di Studio
               </h2>
               <p className="text-[11px] text-slate-500">
-                Stanze di studio &bull; {activeStudentProfile.name}
+                {activeStudentProfile.name} &bull; {activeStudentProfile.grade}
               </p>
             </div>
           </div>
@@ -79,31 +91,12 @@ export function SubjectRoomsSidebar({
           </button>
         </div>
 
-        {/* Action: Nuova Chat (in evidenza nella barra laterale) */}
-        {currentSubject && (
-          <div className="p-3 pb-1 border-b border-slate-200/50 dark:border-slate-800/60">
-            <button
-              type="button"
-              onClick={() => {
-                onNewSession();
-                if (window.innerWidth < 768) onClose();
-              }}
-              className="w-full py-2.5 px-4 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-sky-50 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-100 font-semibold text-xs sm:text-sm flex items-center gap-2.5 border border-slate-200/90 dark:border-slate-700/80 shadow-xs hover:border-sky-300 dark:hover:border-sky-600 transition-all cursor-pointer group"
-            >
-              <div className="w-5 h-5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 flex items-center justify-center group-hover:rotate-90 transition-transform duration-200">
-                <Plus className="w-3.5 h-3.5" />
-              </div>
-              <span>Nuova chat in {SUBJECTS[currentSubject].name.split(' ')[0]}</span>
-            </button>
-          </div>
-        )}
-
         {/* Scrollable Navigation */}
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
           {/* SECTION 1: STANZE DELLE MATERIE */}
           <div className="space-y-1">
             <div className="px-2 pb-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              Stanze delle Materie
+              Materie
             </div>
 
             <div className="space-y-0.5">
@@ -137,94 +130,178 @@ export function SubjectRoomsSidebar({
             </div>
           </div>
 
-          {/* SECTION 2: TEST DI APPRENDIMENTO (NotebookLM Style) */}
-          {currentSubject && (
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 border border-indigo-200/80 dark:border-indigo-800/50 space-y-2">
-              <div className="flex items-center gap-2 text-indigo-950 dark:text-indigo-200 font-bold text-xs">
-                <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Test di Apprendimento</span>
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                Mettiti alla prova su {SUBJECTS[currentSubject].name}: quiz interattivo di 5 domande con votazione finale!
-              </p>
+          {/* SECTION 2: ATTIVITÀ (Tabs tra Chat e Storico Test) */}
+          <div className="space-y-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+            {/* Tab Switcher */}
+            <div className="flex items-center p-1 bg-slate-200/60 dark:bg-slate-800/80 rounded-xl text-xs font-semibold">
               <button
                 type="button"
-                onClick={() => {
-                  onOpenQuiz();
-                  if (window.innerWidth < 768) onClose();
-                }}
-                className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                onClick={() => setActiveTab('chats')}
+                className={`flex-1 py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeTab === 'chats'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                }`}
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                Avvia Test con Voto
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Chat</span>
+                {visibleSessions.length > 0 && (
+                  <span className="text-[10px] opacity-75">({visibleSessions.length})</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('quizzes')}
+                className={`flex-1 py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeTab === 'quizzes'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                }`}
+              >
+                <Award className="w-3.5 h-3.5 text-amber-500" />
+                <span>Verifiche</span>
+                {visibleQuizzes.length > 0 && (
+                  <span className="text-[10px] opacity-75">({visibleQuizzes.length})</span>
+                )}
               </button>
             </div>
-          )}
 
-          {/* SECTION 3: CHAT RECENTI NELLA STANZA */}
-          <div className="space-y-1 pt-1">
-            <div className="flex items-center justify-between px-2 pb-1">
-              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {currentSubject ? `Chat in ${SUBJECTS[currentSubject].name}` : 'Tutte le Chat Recenti'}
-              </span>
-              {currentSubject && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onNewSession();
-                    if (window.innerWidth < 768) onClose();
-                  }}
-                  className="text-[11px] text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-                  title="Nuova chat"
-                >
-                  <Plus className="w-3 h-3" /> Nuova
-                </button>
-              )}
-            </div>
-
-            {visibleSessions.length === 0 ? (
-              <div className="text-center py-6 px-3">
-                <p className="text-xs text-slate-400">
-                  Nessuna conversazione ancora salvata qui.
-                </p>
-              </div>
-            ) : (
-              visibleSessions.slice(0, 15).map((sess) => {
-                const isSelected = sess.id === currentSessionId;
-                return (
-                  <div
-                    key={sess.id}
+            {/* TAB CONTENT: CHATS */}
+            {activeTab === 'chats' && (
+              <div className="space-y-1">
+                {/* Singolo pulsante "Nuova chat" se in una stanza */}
+                {currentSubject && (
+                  <button
+                    type="button"
                     onClick={() => {
-                      onSelectSession(sess.id);
+                      onNewSession();
                       if (window.innerWidth < 768) onClose();
                     }}
-                    className={`group flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-sky-100 dark:bg-sky-950/80 text-sky-900 dark:text-sky-100 font-medium'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
-                    }`}
+                    className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 text-sky-700 dark:text-sky-300 font-semibold text-xs flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80 transition-colors cursor-pointer mb-2"
                   >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <MessageSquare className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-600 flex-shrink-0" />
-                      <span className="truncate">{sess.title}</span>
-                    </div>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Nuova chat in {SUBJECTS[currentSubject].name.split(' ')[0]}</span>
+                  </button>
+                )}
+
+                {visibleSessions.length === 0 ? (
+                  <div className="text-center py-6 px-3">
+                    <p className="text-xs text-slate-400">
+                      Nessuna conversazione ancora salvata.
+                    </p>
+                  </div>
+                ) : (
+                  visibleSessions.slice(0, 15).map((sess) => {
+                    const isSelected = sess.id === currentSessionId;
+                    return (
+                      <div
+                        key={sess.id}
+                        onClick={() => {
+                          onSelectSession(sess.id);
+                          if (window.innerWidth < 768) onClose();
+                        }}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-sky-100 dark:bg-sky-950/80 text-sky-900 dark:text-sky-100 font-medium'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        <span className="truncate">{sess.title}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT: QUIZZES (STORICO TEST) */}
+            {activeTab === 'quizzes' && (
+              <div className="space-y-1.5">
+                {/* Action: Nuova verifica se in una stanza */}
+                {currentSubject && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenQuiz();
+                      if (window.innerWidth < 768) onClose();
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer mb-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Avvia verifica in {SUBJECTS[currentSubject].name.split(' ')[0]}</span>
+                  </button>
+                )}
+
+                {/* Lista test completati */}
+                {visibleQuizzes.length === 0 ? (
+                  <div className="text-center py-6 px-3 space-y-1">
+                    <p className="text-xs text-slate-400">
+                      Nessun test ancora svolto.
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Fai una verifica per vedere qui voti e correzioni!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {visibleQuizzes.slice(0, 10).map((quiz) => (
+                      <div
+                        key={quiz.id}
+                        onClick={() => {
+                          if (onSelectQuizDetail) {
+                            onSelectQuizDetail(quiz);
+                          } else {
+                            onOpenTestHistory();
+                          }
+                          if (window.innerWidth < 768) onClose();
+                        }}
+                        className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 border border-slate-200/70 dark:border-slate-800 transition-all cursor-pointer flex items-center justify-between gap-2 group"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                            <span>{SUBJECTS[quiz.subject as SubjectId]?.emoji}</span>
+                            <span className="truncate">{quiz.topic}</span>
+                          </div>
+                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5">
+                            {new Date(quiz.completedAt).toLocaleDateString([], {
+                              day: '2-digit',
+                              month: 'short',
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span
+                            className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+                              quiz.grade >= 8
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                : quiz.grade >= 6
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                            }`}
+                          >
+                            {quiz.grade}/10
+                          </span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-600" />
+                        </div>
+                      </div>
+                    ))}
 
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm('Vuoi eliminare questa chat dalla cronologia?')) {
-                          onDeleteSession(sess.id);
-                        }
+                      onClick={() => {
+                        onOpenTestHistory();
+                        if (window.innerWidth < 768) onClose();
                       }}
-                      className="hidden group-hover:flex p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                      title="Elimina chat"
+                      className="w-full py-2 text-center text-xs text-sky-600 dark:text-sky-400 hover:underline font-semibold cursor-pointer pt-1"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      Vedi tutti i test completati &rarr;
                     </button>
-                  </div>
-                );
-              })
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -32,26 +32,12 @@ export async function GET(
   }
 }
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const user = getAuthorizedUser(req);
-  if (!user) {
-    return new Response(JSON.stringify({ error: 'Non autorizzato' }), { status: 401 });
-  }
-
-  try {
-    const { id } = await params;
-    const db = getFirestoreDb();
-    await db.collection(TUTOR_SESSIONS_COLLECTION).doc(id).delete();
-
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error: unknown) {
-    console.error('Error deleting session:', error);
-    return new Response(JSON.stringify({ error: 'Errore nella cancellazione' }), { status: 500 });
-  }
+export async function DELETE() {
+  // Lo storico delle chat non può essere eliminato per motivi di sicurezza e tutela didattica
+  return new Response(
+    JSON.stringify({
+      error: 'La cancellazione dello storico chat è disabilitata per tutelare la sicurezza e la continuità didattica.',
+    }),
+    { status: 403, headers: { 'Content-Type': 'application/json' } }
+  );
 }

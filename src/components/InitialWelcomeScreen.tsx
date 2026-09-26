@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SubjectId, SUBJECTS } from '@/lib/types';
-import { ArrowRight, Menu, Sparkles } from 'lucide-react';
+import { ArrowRight, Menu } from 'lucide-react';
 
 interface InitialWelcomeScreenProps {
   studentName: string;
@@ -18,48 +18,35 @@ export function InitialWelcomeScreen({
   const subjectList = Object.values(SUBJECTS);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 py-8 max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
-      {/* Hero Welcome Message */}
-      <div className="text-center space-y-3">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-sky-500/20 text-3xl sm:text-4xl mx-auto select-none">
+    <div className="flex flex-col items-center justify-center min-h-[75vh] px-4 py-6 max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
+      {/* Welcome Heading */}
+      <div className="text-center space-y-2">
+        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 text-3xl mx-auto select-none">
           🦉
         </div>
 
-        <div className="space-y-1 pt-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 border border-sky-200/80 dark:border-sky-800/60 text-sky-700 dark:text-sky-300 text-xs font-semibold">
-            <Sparkles className="w-3 h-3" /> AI Tutor Socratico
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-            Benvenuto, {studentName}!
-          </h1>
-          <p className="text-base sm:text-xl font-semibold text-slate-700 dark:text-slate-300">
-            Pronto ad iniziare ad imparare?
-          </p>
-        </div>
-
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+          Benvenuto, {studentName}!
+        </h1>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-          Seleziona nel menu laterale (con le tre linee <strong>☰</strong>) oppure scegli qui sotto la <strong>stanza della materia</strong> che vuoi affrontare oggi:
+          Scegli la materia per iniziare lo studio guidato o metterti alla prova con una verifica:
         </p>
 
-        {/* Mobile Open Sidebar Helper */}
+        {/* Mobile Open Sidebar */}
         <div className="md:hidden pt-1">
           <button
             type="button"
             onClick={onOpenSidebar}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-sky-600 text-white font-semibold text-xs shadow-md shadow-sky-600/25 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs cursor-pointer"
           >
-            <Menu className="w-4 h-4" />
-            Apri menu delle stanze (☰)
+            <Menu className="w-3.5 h-3.5" />
+            <span>Mostra menu laterale (☰)</span>
           </button>
         </div>
       </div>
 
       {/* Grid of Subject Rooms */}
-      <div className="w-full space-y-3">
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-center">
-          Entra in una stanza di studio:
-        </div>
-
+      <div className="w-full">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
           {subjectList.map((subj) => (
             <button

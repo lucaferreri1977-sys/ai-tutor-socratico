@@ -13,9 +13,10 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: 'Non autorizzato' }), { status: 401 });
     }
 
-    const { subject, topic } = (await req.json()) as {
+    const { subject, topic, images } = (await req.json()) as {
       subject: SubjectId;
       topic?: string;
+      images?: string[];
     };
 
     if (!subject || !SUBJECTS[subject]) {
@@ -32,11 +33,18 @@ export async function POST(req: Request) {
     const google = createGoogleGenerativeAI({ apiKey });
     const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 
-    const promptTopic = topic && topic.trim().length > 0 ? `sull'argomento specifico: "${topic.trim()}"` : `sul programma generale di scuola media`;
+    const hasImages = Array.isArray(images) && images.length > 0;
+    const promptTopic = topic && topic.trim().length > 0 ? topic.trim() : '';
 
     const systemPrompt = `
-Sei un esperto docente per la scuola secondaria di primo grado (scuola media, ragazzi di 11-14 anni).
-Il tuo compito è generare un test di apprendimento interattivo (stile NotebookLM / quiz didattico) di 5 domande a risposta multipla per la materia: **${subjectMeta.name}** (${subjectMeta.category}) ${promptTopic}.
+Sei un esperto docente per la scuola secondaria di primo grado (scuola media italiana, ragazzi di 11-14 anni).
+Il tuo compito è creare un test didattico formativo di 5 domande a risposta multipla per la materia: **${subjectMeta.name}** (${subjectMeta.category}).
+
+${hasImages ? `ATTENZIONE SPECIFICA SULLE FOTO FORNITE:
+Lo studente ha caricato ${images.length} foto contenenti pagine di libro di testo, schede o appunti di quaderno.
+DEVI LEGGERE E ANALIZZARE ATTENTAMENTE IL TESTO, LE IMMAGINI, I GRAFICI, LE DEFINIZIONI, LE FORMULE E GLI ESERCIZI NELLE IMMAGINI FORNITE.
+Le 5 domande DEVONO essere basate direttamente su quanto spiegato o illustrato in queste pagine fotografate.
+Se lo studente ha indicato un argomento ("${promptTopic || 'non specificato'}"), concentrati su quella sezione delle pagine; altrimenti copri i punti chiave delle pagine fotografate e indica l'argomento dedotto nel campo "topic".` : ''}
 
 REGOLE TASSATIVE:
 1. Genera ESATTAMENTE 5 domande a risposta multipla calibrate per il livello scolastico delle medie.
@@ -46,7 +54,7 @@ REGOLE TASSATIVE:
 
 Formato JSON atteso:
 {
-  "topic": "${topic?.trim() || subjectMeta.name}",
+  "topic": "${promptTopic || (hasImages ? 'Argomento tratto dalle pagine caricate' : subjectMeta.name)}",
   "questions": [
     {
       "id": "q1",
@@ -60,11 +68,42 @@ Formato JSON atteso:
 }
 `;
 
+    // Construct prompt content
+    let userPromptText = '';
+    if (hasImages) {
+      userPromptText = `Ecco le foto delle pagine del libro/quaderno su cui basare il test di verifica per ${subjectMeta.name}.
+${promptTopic ? `Argomento di riferimento specificato: "${promptTopic}".` : 'Identifica l\'argomento dalle pagine.'}
+Genera 5 domande a scelta multipla basate su queste pagine. Rispondi solo in formato JSON.`;
+    } else {
+      userPromptText = `Genera un test di verifica di 5 domande per ${subjectMeta.name} ${promptTopic ? `sull'argomento: "${promptTopic}"` : 'sul programma generale delle medie'}. Rispondi solo in formato JSON.`;
+    }
+
+    const userContent: Array<
+      | { type: 'text'; text: string }
+      | { type: 'image'; image: string }
+    > = [
+      { type: 'text', text: userPromptText },
+    ];
+
+    if (hasImages) {
+      for (const img of images) {
+        userContent.push({
+          type: 'image',
+          image: img,
+        });
+      }
+    }
+
     const result = await generateText({
       model: google(modelName),
       system: systemPrompt,
-      prompt: `Genera ora il test di verifica di 5 domande per ${subjectMeta.name} ${promptTopic}. Rispondi solo in formato JSON.`,
-      temperature: 0.3,
+      messages: [
+        {
+          role: 'user',
+          content: userContent,
+        },
+      ],
+      temperature: 0.25,
     });
 
     let cleaned = result.text.trim();
@@ -72,6 +111,13 @@ Formato JSON atteso:
       cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '').trim();
     } else if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/^```/, '').replace(/```$/, '').trim();
+    }
+
+    // Safeguard to extract JSON if surrounded by any additional commentary
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
     }
 
     const parsed = JSON.parse(cleaned) as { topic?: string; questions: QuizQuestion[] };

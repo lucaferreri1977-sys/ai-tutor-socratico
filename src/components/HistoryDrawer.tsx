@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ChatSessionSummary, StudentId, SUBJECTS, SubjectId } from '@/lib/types';
-import { X, Plus, Trash2, Clock, BookOpen, MessageSquare } from 'lucide-react';
+import { X, Plus, Clock, BookOpen, MessageSquare } from 'lucide-react';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -114,20 +114,6 @@ export function HistoryDrawer({
                       </span>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm('Vuoi davvero cancellare questa sessione?')) {
-                        onDeleteSession(sess.id);
-                      }
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-opacity hover:bg-rose-50 dark:hover:bg-rose-950 cursor-pointer"
-                    title="Elimina sessione"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               );
             })

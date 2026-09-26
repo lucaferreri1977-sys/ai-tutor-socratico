@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ChatSessionSummary, StudentId, AuthSession, STUDENTS } from '@/lib/types';
-import { Plus, Trash2, MessageSquare, PanelLeftClose, LogOut, ShieldCheck, User } from 'lucide-react';
+import { Plus, MessageSquare, PanelLeftClose, LogOut, ShieldCheck, User } from 'lucide-react';
 
 interface GeminiSidebarProps {
   isOpen: boolean;
@@ -144,22 +144,9 @@ export function GeminiSidebar({
                   </div>
 
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <span className="text-[10px] text-slate-400 group-hover:hidden">
+                    <span className="text-[10px] text-slate-400">
                       {dateStr}
                     </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm('Vuoi eliminare questa chat dalla cronologia?')) {
-                          onDeleteSession(sess.id);
-                        }
-                      }}
-                      className="hidden group-hover:flex p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                      title="Elimina chat"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
               );

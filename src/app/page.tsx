@@ -1,17 +1,18 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary, AuthSession } from '@/lib/types';
+import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary, AuthSession, QuizTestRecord } from '@/lib/types';
 import { ChatHeader } from '@/components/ChatHeader';
 import { ChatMessage, MessageData } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
 import { SubjectRoomsSidebar } from '@/components/SubjectRoomsSidebar';
 import { InitialWelcomeScreen } from '@/components/InitialWelcomeScreen';
 import { QuizModal } from '@/components/QuizModal';
+import { TestHistoryModal } from '@/components/TestHistoryModal';
 import { ParentDashboardModal } from '@/components/ParentDashboardModal';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fireCelebrationConfetti, shouldCelebrate } from '@/lib/confetti';
-import { AlertCircle, Key, Award, Sparkles, BookOpen } from 'lucide-react';
+import { AlertCircle, Award, Sparkles } from 'lucide-react';
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AuthSession | null>(null);
@@ -28,16 +29,18 @@ export default function Home() {
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  // Sidebar state (open by default on desktop, responsive drawer on mobile)
+  // Sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Modals
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+  const [isTestHistoryOpen, setIsTestHistoryOpen] = useState(false);
   const [isParentDashboardOpen, setIsParentDashboardOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Saved sessions for active student from Firestore
+  // Saved sessions and quizzes for active student
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
+  const [quizzes, setQuizzes] = useState<QuizTestRecord[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -91,11 +94,27 @@ export default function Home() {
     }
   }, []);
 
+  // Fetch student quizzes from Firestore
+  const fetchStudentQuizzes = useCallback(async (student: StudentId, token: string) => {
+    try {
+      const res = await fetch(`/api/quiz?studentId=${student}`, {
+        headers: { 'x-user-auth': token, 'x-family-pin': token },
+      });
+      const data = await res.json();
+      if (res.ok && data.quizzes) {
+        setQuizzes(data.quizzes);
+      }
+    } catch (e) {
+      console.error('Error fetching quizzes:', e);
+    }
+  }, []);
+
   useEffect(() => {
     if (currentUser) {
       fetchStudentSessions(currentStudent, currentUser.token);
+      fetchStudentQuizzes(currentStudent, currentUser.token);
     }
-  }, [currentUser, currentStudent, fetchStudentSessions]);
+  }, [currentUser, currentStudent, fetchStudentSessions, fetchStudentQuizzes]);
 
   // Login handler
   const handleLoginSuccess = (session: AuthSession) => {
@@ -118,7 +137,10 @@ export default function Home() {
     setCurrentSessionId(null);
     setMessages([]);
     setSessions([]);
+    setQuizzes([]);
     setIsParentDashboardOpen(false);
+    setIsTestHistoryOpen(false);
+    setIsQuizModalOpen(false);
   };
 
   // Switch student
@@ -166,21 +188,9 @@ export default function Home() {
     }
   };
 
-  // Delete a session from history
-  const handleDeleteSession = async (sessionId: string) => {
-    if (!currentUser) return;
-    try {
-      await fetch(`/api/sessions/${sessionId}`, {
-        method: 'DELETE',
-        headers: { 'x-user-auth': currentUser.token, 'x-family-pin': currentUser.token },
-      });
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      if (currentSessionId === sessionId) {
-        handleNewSession();
-      }
-    } catch (e) {
-      console.error('Failed to delete session:', e);
-    }
+  // Real-time quiz completion callback
+  const handleQuizCompleted = (newRecord: QuizTestRecord) => {
+    setQuizzes((prev) => [newRecord, ...prev]);
   };
 
   // Save session to Firebase Firestore
@@ -342,10 +352,11 @@ export default function Home() {
 
   const activeStudentProfile = STUDENTS[currentStudent];
   const activeSubjectMeta = currentSubject ? SUBJECTS[currentSubject] : null;
+  const studentQuizzes = quizzes.filter((q) => q.studentId === currentStudent);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100/60 dark:bg-slate-950">
-      {/* Sidebar con Stanze delle Materie fisse e Cronologia */}
+      {/* Sidebar con Stanze delle Materie fisse e Cronologia senza eliminazione */}
       <SubjectRoomsSidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -355,14 +366,15 @@ export default function Home() {
         currentSessionId={currentSessionId}
         onSelectSession={handleLoadSession}
         onNewSession={handleNewSession}
-        onDeleteSession={handleDeleteSession}
         onOpenQuiz={() => setIsQuizModalOpen(true)}
+        onOpenTestHistory={() => setIsTestHistoryOpen(true)}
         currentStudent={currentStudent}
+        quizzes={quizzes}
       />
 
       {/* Main App Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Top Header con Hamburger ☰ e info stanza */}
+        {/* Top Header */}
         <ChatHeader
           currentSubject={currentSubject}
           currentUser={currentUser}
@@ -370,8 +382,10 @@ export default function Home() {
           onSelectStudent={handleSelectStudent}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onOpenQuiz={() => setIsQuizModalOpen(true)}
+          onOpenTestHistory={() => setIsTestHistoryOpen(true)}
           onLogout={handleLogout}
           disabled={isStreaming}
+          testCount={studentQuizzes.length}
         />
 
         {/* Error Alert Banner */}
@@ -395,15 +409,15 @@ export default function Home() {
                 onOpenSidebar={() => setIsSidebarOpen(true)}
               />
             ) : messages.length === 0 ? (
-              /* 2. SE DENTRO UNA STANZA MA NESSUN MESSAGGIO: Benvenuto specifico per la materia */
+              /* 2. SE DENTRO UNA STANZA MA NESSUN MESSAGGIO: Schermata pulita senza doppioni */
               <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 px-4 py-8 animate-in fade-in duration-200">
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="w-16 h-16 rounded-3xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 flex items-center justify-center text-3xl mx-auto shadow-xs select-none">
                     {activeSubjectMeta.emoji}
                   </div>
                   <div>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                      Stanza di {activeSubjectMeta.name}
+                    <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
+                      {activeSubjectMeta.name}
                     </h2>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">
                       {activeSubjectMeta.description}
@@ -411,29 +425,30 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* NotebookLM Style Quiz Prompt Action */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-50 via-purple-50 to-sky-50 dark:from-indigo-950/40 dark:via-purple-950/40 dark:to-sky-950/40 border border-indigo-200/80 dark:border-indigo-800/60 max-w-md w-full space-y-2.5 text-left">
-                  <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-bold text-xs sm:text-sm">
-                    <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span>Vuoi metterti alla prova con una verifica?</span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                    Fai un test interattivo di 5 domande con voto in decimi e giudizio finale:
-                  </p>
+                {/* Pulsanti Rapidi Azione: Nuova Verifica e Storico */}
+                <div className="flex items-center justify-center gap-2.5 w-full max-w-md">
                   <button
                     type="button"
                     onClick={() => setIsQuizModalOpen(true)}
-                    className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
                   >
                     <Sparkles className="w-4 h-4" />
-                    Avvia Test di {activeSubjectMeta.name} con Voto
+                    <span>Nuova Verifica con Voto</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsTestHistoryOpen(true)}
+                    className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Award className="w-4 h-4 text-amber-500" />
+                    <span>Storico Test</span>
                   </button>
                 </div>
 
                 {/* Quick Subject Prompts */}
-                <div className="w-full max-w-md space-y-2 text-left">
+                <div className="w-full max-w-md space-y-2 text-left pt-2">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Oppure chiedi aiuto a Socrate su:
+                    Chiedi aiuto a Socrate su:
                   </span>
                   <div className="space-y-1.5">
                     {activeSubjectMeta.quickPrompts.map((prompt, i) => (
@@ -465,7 +480,7 @@ export default function Home() {
           </div>
         </main>
 
-        {/* Bottom Chat Input (attivo solo se è selezionata una stanza) */}
+        {/* Bottom Chat Input */}
         {currentSubject && (
           <ChatInput
             onSendMessage={handleSendMessage}
@@ -474,7 +489,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* NotebookLM Style Quiz Modal */}
+      {/* Quiz Modal con supporto foto del libro e senza titoli ridondanti */}
       {currentSubject && (
         <QuizModal
           isOpen={isQuizModalOpen}
@@ -483,10 +498,26 @@ export default function Home() {
           studentId={currentStudent}
           studentName={activeStudentProfile.name}
           authToken={currentUser.token}
+          onQuizCompleted={handleQuizCompleted}
         />
       )}
 
-      {/* Area Riservata Genitori Modal con Statistiche e Votazioni Test */}
+      {/* Storico Test Modal accessibile da studenti e genitori */}
+      <TestHistoryModal
+        isOpen={isTestHistoryOpen}
+        onClose={() => setIsTestHistoryOpen(false)}
+        studentId={currentStudent}
+        quizzes={quizzes}
+        currentSubject={currentSubject}
+        onOpenNewTest={() => {
+          setIsTestHistoryOpen(false);
+          if (currentSubject) {
+            setIsQuizModalOpen(true);
+          }
+        }}
+      />
+
+      {/* Area Riservata Genitori Modal */}
       <ParentDashboardModal
         isOpen={isParentDashboardOpen}
         onClose={() => setIsParentDashboardOpen(false)}
