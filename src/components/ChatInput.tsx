@@ -109,13 +109,13 @@ export function ChatInput({
             disabled={disabled}
             onClick={() => fileInputRef.current?.click()}
             title="Carica foto del quaderno o del libro"
-            className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-sky-950 hover:text-sky-600 dark:hover:text-sky-400 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center cursor-pointer flex-shrink-0"
+            className="w-[46px] h-[46px] rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-sky-950 hover:text-sky-600 dark:hover:text-sky-400 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center cursor-pointer flex-shrink-0"
           >
             <ImageIcon className="w-5 h-5" />
           </button>
 
           {/* Text input area */}
-          <div className="flex-1 relative rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all overflow-hidden">
+          <div className="flex-1 min-h-[46px] relative rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all flex items-center overflow-hidden">
             <textarea
               ref={textareaRef}
               value={input}
@@ -136,7 +136,7 @@ export function ChatInput({
           <button
             type="submit"
             disabled={disabled || (!input.trim() && !selectedImage)}
-            className="p-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-40 disabled:hover:bg-sky-600 shadow-md shadow-sky-600/20 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center"
+            className="w-[46px] h-[46px] rounded-2xl bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-40 disabled:hover:bg-sky-600 shadow-md shadow-sky-600/20 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center"
             title="Invia messaggio"
           >
             <Send className="w-5 h-5" />
