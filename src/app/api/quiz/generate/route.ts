@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: 'Materia non valida' }), { status: 400 });
     }
 
-    const questionCount = Math.max(3, Math.min(15, Number(rawCount) || 5));
+    const questionCount = Math.max(5, Math.min(30, Number(rawCount) || 10));
     const subjectMeta = SUBJECTS[subject];
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
 
@@ -106,6 +106,7 @@ Genera ${questionCount} domande a scelta multipla basate su queste pagine. Rispo
         },
       ],
       temperature: 0.25,
+      maxOutputTokens: 8192,
     });
 
     let cleaned = result.text.trim();

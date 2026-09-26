@@ -71,7 +71,7 @@ export function QuizModal({
   onQuizCompleted,
 }: QuizModalProps) {
   const [topicInput, setTopicInput] = useState('');
-  const [questionCount, setQuestionCount] = useState<number>(5);
+  const [questionCount, setQuestionCount] = useState<number>(10);
   const [images, setImages] = useState<AttachedImage[]>([]);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -308,21 +308,25 @@ export function QuizModal({
                     {questionCount} quesiti
                   </span>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {[3, 5, 8, 10].map((num) => (
+                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                  {[
+                    { count: 10, label: 'Veloce' },
+                    { count: 20, label: 'Standard' },
+                    { count: 30, label: 'Approfondito' },
+                  ].map((opt) => (
                     <button
-                      key={num}
+                      key={opt.count}
                       type="button"
-                      onClick={() => setQuestionCount(num)}
-                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 border ${
-                        questionCount === num
+                      onClick={() => setQuestionCount(opt.count)}
+                      className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 border touch-manipulation ${
+                        questionCount === opt.count
                           ? 'bg-sky-600 text-white border-sky-600 shadow-xs ring-2 ring-sky-500/20'
                           : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-sky-300 dark:hover:border-sky-700'
                       }`}
                     >
-                      <span className="text-sm font-black">{num}</span>
-                      <span className="text-[10px] font-normal opacity-85">
-                        {num === 3 ? 'Veloce' : num === 5 ? 'Standard' : num === 8 ? 'Approfondito' : 'Completo'}
+                      <span className="text-base font-black">{opt.count}</span>
+                      <span className="text-[11px] font-medium opacity-90">
+                        {opt.label}
                       </span>
                     </button>
                   ))}
