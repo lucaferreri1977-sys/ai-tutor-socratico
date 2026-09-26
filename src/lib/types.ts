@@ -121,7 +121,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   },
   scienze: {
     id: 'scienze',
-    name: 'Scienze della Terra & Biologia',
+    name: 'Scienze',
     category: 'STEM',
     emoji: '🔬',
     color: 'border-emerald-500 text-emerald-600',
@@ -135,7 +135,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   },
   italiano_grammatica: {
     id: 'italiano_grammatica',
-    name: 'Italiano: Grammatica & Sintassi',
+    name: 'Grammatica & Sintassi',
     category: 'Umanistica',
     emoji: '📖',
     color: 'border-amber-500 text-amber-600',
@@ -149,7 +149,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   },
   italiano_scrittura: {
     id: 'italiano_scrittura',
-    name: 'Italiano: Temi & Scrittura',
+    name: 'Temi & Scrittura',
     category: 'Umanistica',
     emoji: '✍️',
     color: 'border-orange-500 text-orange-600',
@@ -191,7 +191,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   },
   inglese: {
     id: 'inglese',
-    name: 'Inglese (ESL / A1-B1)',
+    name: 'Inglese',
     category: 'Lingue',
     emoji: '🇬🇧',
     color: 'border-indigo-500 text-indigo-600',
@@ -205,7 +205,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   },
   francese: {
     id: 'francese',
-    name: 'Francese (FLE / A1-A2)',
+    name: 'Francese',
     category: 'Lingue',
     emoji: '🇫🇷',
     color: 'border-cyan-500 text-cyan-600',
@@ -219,7 +219,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   },
   tecnologia: {
     id: 'tecnologia',
-    name: 'Tecnologia & Informatica',
+    name: 'Tecnologia',
     category: 'Arte & Tecnica',
     emoji: '⚙️',
     color: 'border-slate-500 text-slate-600',
@@ -233,7 +233,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   },
   musica: {
     id: 'musica',
-    name: 'Musica & Teoria Musicale',
+    name: 'Musica',
     category: 'Arte & Tecnica',
     emoji: '🎵',
     color: 'border-purple-500 text-purple-600',
@@ -247,7 +247,7 @@ export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   },
   arte: {
     id: 'arte',
-    name: 'Arte & Immagine',
+    name: 'Arte',
     category: 'Arte & Tecnica',
     emoji: '🎨',
     color: 'border-pink-500 text-pink-600',

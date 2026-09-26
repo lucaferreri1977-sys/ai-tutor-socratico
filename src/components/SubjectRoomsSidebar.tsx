@@ -77,9 +77,6 @@ export function SubjectRoomsSidebar({
               <h2 className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight">
                 Stanze di Studio
               </h2>
-              <p className="text-[11px] text-slate-500">
-                {activeStudentProfile.name} &bull; {activeStudentProfile.grade}
-              </p>
             </div>
           </div>
           <button
@@ -181,7 +178,7 @@ export function SubjectRoomsSidebar({
                     className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 text-sky-700 dark:text-sky-300 font-semibold text-xs flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80 transition-colors cursor-pointer mb-2"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Nuova chat in {SUBJECTS[currentSubject].name.split(' ')[0]}</span>
+                    <span>Nuova chat</span>
                   </button>
                 )}
 
@@ -230,7 +227,7 @@ export function SubjectRoomsSidebar({
                     className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer mb-2"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Avvia verifica in {SUBJECTS[currentSubject].name.split(' ')[0]}</span>
+                    <span>Nuova verifica</span>
                   </button>
                 )}
 

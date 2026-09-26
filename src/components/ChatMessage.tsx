@@ -57,7 +57,7 @@ export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) 
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm text-slate-800 dark:text-slate-200">
-                {isAssistant ? 'Socrate (Tutor)' : 'Tu'}
+                {isAssistant ? 'Socrate' : 'Tu'}
               </span>
               {message.timestamp && (
                 <span className="text-[11px] text-slate-400 dark:text-slate-500">

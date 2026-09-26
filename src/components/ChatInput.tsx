@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Send, Image as ImageIcon, X, Sparkles, HelpCircle, ArrowRight } from 'lucide-react';
+import { Send, Image as ImageIcon, X } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (text: string, imageBase64?: string) => void;
@@ -76,9 +76,6 @@ export function ChatInput({
       <div className="max-w-4xl mx-auto space-y-2.5">
         {/* Quick Socratic chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs">
-          <span className="text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1 whitespace-nowrap">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Aiuti rapidi:
-          </span>
           <button
             type="button"
             disabled={disabled}
@@ -178,10 +175,6 @@ export function ChatInput({
             <Send className="w-5 h-5" />
           </button>
         </form>
-
-        <p className="text-[11px] text-center text-slate-400 dark:text-slate-500">
-          Socrate non ti darà le risposte pronte: ti aiuterà a trovarle con la tua testa! 🧠
-        </p>
       </div>
     </div>
   );

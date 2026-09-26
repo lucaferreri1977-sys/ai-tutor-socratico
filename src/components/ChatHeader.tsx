@@ -3,7 +3,7 @@
 import React from 'react';
 import { SubjectId, SUBJECTS, StudentId, STUDENTS, AuthSession } from '@/lib/types';
 import { StudentSelector } from './StudentSelector';
-import { Menu, LogOut, Award, Sparkles } from 'lucide-react';
+import { Menu, LogOut, Sparkles } from 'lucide-react';
 
 interface ChatHeaderProps {
   currentSubject: SubjectId | null;
@@ -49,52 +49,37 @@ export function ChatHeader({
             <Menu className="w-5 h-5 text-slate-800 dark:text-slate-100" />
           </button>
 
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-xs text-base select-none flex-shrink-0">
-              🦉
-            </div>
+          {subjectMeta ? (
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-tight truncate">
-                AI Tutor Socratico
-              </span>
-              {subjectMeta && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/40 truncate">
-                  <span>{subjectMeta.emoji}</span>
-                  <span className="truncate">{subjectMeta.name.split('&')[0].trim()}</span>
-                </span>
-              )}
+              <span className="text-xl select-none flex-shrink-0">{subjectMeta.emoji}</span>
+              <h1 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-tight truncate">
+                {subjectMeta.name}
+              </h1>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-xs text-base select-none flex-shrink-0">
+                🦉
+              </div>
+              <h1 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-tight truncate">
+                AI Tutor Socratico
+              </h1>
+            </div>
+          )}
         </div>
 
-        {/* Right Controls: Storico Test, Avvia Verifica, Profilo, Logout */}
+        {/* Right Controls: Avvia Verifica, Profilo, Logout */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
-          {/* Storico Test Button */}
-          <button
-            type="button"
-            onClick={onOpenTestHistory}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all cursor-pointer"
-            title="Guarda tutti i test svolti e i voti"
-          >
-            <Award className="w-3.5 h-3.5 text-amber-500" />
-            <span className="hidden sm:inline">Storico Test</span>
-            {testCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 font-bold text-[10px]">
-                {testCount}
-              </span>
-            )}
-          </button>
-
           {/* Nuova Verifica (visibile solo se dentro una materia) */}
           {subjectMeta && (
             <button
               type="button"
               onClick={onOpenQuiz}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
-              title="Avvia una nuova verifica in questa materia"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              title="Avvia una verifica con voto"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Verifica</span>
+              <span>Nuova Verifica</span>
             </button>
           )}
 
