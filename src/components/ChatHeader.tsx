@@ -21,8 +21,8 @@ export function ChatHeader({
   const activeStudentProfile = STUDENTS[currentStudent];
 
   return (
-    <header className="w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-4 py-2 sticky top-0 z-30">
-      <div className="relative flex items-center justify-between gap-2 max-w-7xl mx-auto min-h-[40px]">
+    <header className="w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-2 sm:px-3 py-2 sticky top-0 z-30">
+      <div className="relative flex items-center justify-between gap-2 w-full min-h-[40px]">
         {/* Left: Tre Linee Orizzontali (☰) nell'angolo sinistro */}
         <div className="flex items-center z-10">
           <button
