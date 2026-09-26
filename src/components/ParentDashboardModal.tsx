@@ -285,12 +285,17 @@ export function ParentDashboardModal({
               {/* SUB-VIEW: Quiz Details Viewer */}
               {viewingQuiz ? (
                 <div className="space-y-4">
-                  <button
-                    onClick={() => setViewingQuiz(null)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Torna all&apos;elenco test
-                  </button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setViewingQuiz(null)}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all cursor-pointer touch-manipulation select-none"
+                      aria-label="Torna all'elenco test"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0" />
+                      <span>Torna all&apos;elenco test</span>
+                    </button>
+                  </div>
 
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
                     <div>
@@ -359,12 +364,17 @@ export function ParentDashboardModal({
               ) : viewingSession ? (
                 /* SUB-VIEW: Single Session Transcript Viewer */
                 <div className="space-y-4">
-                  <button
-                    onClick={() => setViewingSession(null)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Torna all&apos;elenco sessioni
-                  </button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setViewingSession(null)}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all cursor-pointer touch-manipulation select-none"
+                      aria-label="Torna all'elenco sessioni"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0" />
+                      <span>Torna all&apos;elenco sessioni</span>
+                    </button>
+                  </div>
 
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
                     <div>

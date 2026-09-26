@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import 'katex/dist/katex.min.css';
@@ -17,6 +17,12 @@ export const metadata: Metadata = {
   title: 'AI Tutor Socratico - Studia con Socrate',
   description:
     'AI Tutor Socratico: una guida didattica empatica per studenti delle scuole medie (Alessio e Mattia) per tutte le materie curricolari con il metodo socratico.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({

@@ -182,14 +182,17 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
         {/* VIEW 1: Quiz Detail Modal / Viewer */}
         {viewingQuiz ? (
           <div className="space-y-4 animate-in fade-in duration-150">
-            <button
-              type="button"
-              onClick={() => setViewingQuiz(null)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Torna alle verifiche
-            </button>
+            <div>
+              <button
+                type="button"
+                onClick={() => setViewingQuiz(null)}
+                className="inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-sm active:scale-[0.98] transition-all cursor-pointer touch-manipulation select-none"
+                aria-label="Torna alle verifiche"
+              >
+                <ArrowLeft className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0" />
+                <span>Torna alle verifiche</span>
+              </button>
+            </div>
 
             <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -270,14 +273,17 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
         ) : viewingSession ? (
           /* VIEW 2: Chat Session Transcript Viewer */
           <div className="space-y-4 animate-in fade-in duration-150">
-            <button
-              type="button"
-              onClick={() => setViewingSession(null)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Torna all&apos;elenco sessioni
-            </button>
+            <div>
+              <button
+                type="button"
+                onClick={() => setViewingSession(null)}
+                className="inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-sm active:scale-[0.98] transition-all cursor-pointer touch-manipulation select-none"
+                aria-label="Torna all'elenco sessioni"
+              >
+                <ArrowLeft className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0" />
+                <span>Torna all&apos;elenco sessioni</span>
+              </button>
+            </div>
 
             <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
               <div>

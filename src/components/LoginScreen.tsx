@@ -159,9 +159,10 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               <button
                 type="button"
                 onClick={handleBack}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer touch-manipulation select-none active:scale-95"
               >
-                <ArrowLeft className="w-3.5 h-3.5" /> Cambia profilo
+                <ArrowLeft className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                <span>Cambia profilo</span>
               </button>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
                 <span>{activeProfile?.avatar}</span>

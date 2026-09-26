@@ -128,7 +128,7 @@ export function ChatInput({
                   ? 'Fai una domanda specifica sulla foto o premi Invio...'
                   : 'Scrivi qui il tuo dubbio o incolla l’esercizio...'
               }
-              className="w-full bg-transparent px-3.5 py-2.5 text-sm sm:text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
+              className="w-full bg-transparent px-3.5 py-2.5 text-base sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
             />
           </div>
 
