@@ -79,18 +79,19 @@ export async function POST(req: Request) {
       }
     }
 
-    await sessionRef.set(
-      {
-        studentId,
-        studentName: studentName || (studentId === 'alessio' ? 'Alessio' : 'Mattia'),
-        subject,
-        title: derivedTitle || 'Sessione di studio',
-        messages: messages || [],
-        updatedAt: now,
-        createdAt: id ? undefined : now,
-      },
-      { merge: true }
-    );
+    const sessionData: Record<string, any> = {
+      studentId,
+      studentName: studentName || (studentId === 'alessio' ? 'Alessio' : 'Mattia'),
+      subject: subject || 'Generale',
+      title: derivedTitle || 'Conversazione con Socrate',
+      messages: messages || [],
+      updatedAt: now,
+    };
+    if (!id) {
+      sessionData.createdAt = now;
+    }
+
+    await sessionRef.set(sessionData, { merge: true });
 
     return new Response(JSON.stringify({ success: true, id: sessionId }), {
       status: 200,

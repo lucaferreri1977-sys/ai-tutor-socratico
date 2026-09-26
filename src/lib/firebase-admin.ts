@@ -28,7 +28,11 @@ export function getFirebaseAdmin() {
 
 export function getFirestoreDb() {
   getFirebaseAdmin();
-  return admin.firestore();
+  const db = admin.firestore();
+  try {
+    db.settings({ ignoreUndefinedProperties: true });
+  } catch {}
+  return db;
 }
 
 // Collezione isolata al 100% per non intaccare altri progetti dello stesso account Firebase
