@@ -361,7 +361,7 @@ export default function Home() {
   const studentQuizzes = quizzes.filter((q) => q.studentId === currentStudent);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100/60 dark:bg-slate-950">
+    <div className="flex h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-slate-100/60 dark:bg-slate-950">
       {/* Sidebar con Stanze delle Materie fisse e Cronologia senza eliminazione */}
       <SubjectRoomsSidebar
         isOpen={isSidebarOpen}
@@ -386,7 +386,7 @@ export default function Home() {
       />
 
       {/* Main App Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-[100dvh] max-h-[100dvh] overflow-hidden">
         {/* Top Header */}
         <ChatHeader
           currentUser={currentUser}
@@ -412,8 +412,8 @@ export default function Home() {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 flex flex-col justify-between">
-          <div className="flex-1 max-w-4xl w-full mx-auto">
+        <main className="flex-1 overflow-y-auto px-2 sm:px-4 py-2 sm:py-3 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto">
             {/* 1. SE NESSUNA STANZA È SELEZIONATA: Schermata Iniziale di Benvenuto */}
             {!currentSubject || !activeSubjectMeta ? (
               <InitialWelcomeScreen
@@ -423,13 +423,13 @@ export default function Home() {
               />
             ) : messages.length === 0 ? (
               /* 2. SE DENTRO UNA STANZA MA NESSUN MESSAGGIO: Schermata pulita solo icona e titolo */
-              <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-4 px-4 py-8 animate-in fade-in duration-200">
+              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3 px-4 py-4 my-auto animate-in fade-in duration-200">
                 <div className="space-y-2">
-                  <div className="w-16 h-16 rounded-3xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 flex items-center justify-center text-3xl mx-auto shadow-xs select-none">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 flex items-center justify-center text-2xl sm:text-3xl mx-auto shadow-xs select-none">
                     {activeSubjectMeta.emoji}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                       {activeSubjectMeta.name}
                     </h2>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">

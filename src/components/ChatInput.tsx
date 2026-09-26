@@ -66,8 +66,13 @@ export function ChatInput({
   };
 
   return (
-    <div className="w-full bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-3 sm:p-4">
-      <div className="max-w-4xl mx-auto space-y-2.5">
+    <div
+      className="w-full bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-2 sm:p-4 flex-shrink-0"
+      style={{
+        paddingBottom: 'max(0.75rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)))',
+      }}
+    >
+      <div className="max-w-4xl mx-auto space-y-2">
 
         {/* Selected image preview */}
         {selectedImage && (
@@ -93,7 +98,7 @@ export function ChatInput({
         )}
 
         {/* Main input form */}
-        <form onSubmit={handleSubmit} className="flex items-end gap-2">
+        <form onSubmit={handleSubmit} className="flex items-center gap-1.5 sm:gap-2">
           {/* Hidden file input */}
           <input
             type="file"
@@ -109,13 +114,13 @@ export function ChatInput({
             disabled={disabled}
             onClick={() => fileInputRef.current?.click()}
             title="Carica foto del quaderno o del libro"
-            className="w-[46px] h-[46px] rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-sky-950 hover:text-sky-600 dark:hover:text-sky-400 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center cursor-pointer flex-shrink-0"
+            className="w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-sky-950 hover:text-sky-600 dark:hover:text-sky-400 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center cursor-pointer flex-shrink-0 touch-manipulation"
           >
-            <ImageIcon className="w-5 h-5" />
+            <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Text input area */}
-          <div className="flex-1 min-h-[46px] relative rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all flex items-center overflow-hidden">
+          <div className="flex-1 min-h-[40px] sm:min-h-[46px] relative rounded-xl sm:rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all flex items-center overflow-hidden">
             <textarea
               ref={textareaRef}
               value={input}
@@ -125,10 +130,10 @@ export function ChatInput({
               rows={1}
               placeholder={
                 selectedImage
-                  ? 'Fai una domanda specifica sulla foto o premi Invio...'
-                  : 'Scrivi qui il tuo dubbio o incolla l’esercizio...'
+                  ? 'Fai una domanda sulla foto o premi Invio...'
+                  : 'Scrivi qui il tuo dubbio o esercizio...'
               }
-              className="w-full bg-transparent px-3.5 py-2.5 text-base sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
+              className="w-full bg-transparent px-3 py-2 sm:px-3.5 sm:py-2.5 text-base sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none resize-none leading-normal"
             />
           </div>
 
@@ -136,10 +141,10 @@ export function ChatInput({
           <button
             type="submit"
             disabled={disabled || (!input.trim() && !selectedImage)}
-            className="w-[46px] h-[46px] rounded-2xl bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-40 disabled:hover:bg-sky-600 shadow-md shadow-sky-600/20 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center"
+            className="w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-40 disabled:hover:bg-sky-600 shadow-md shadow-sky-600/20 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center touch-manipulation"
             title="Invia messaggio"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </form>
       </div>

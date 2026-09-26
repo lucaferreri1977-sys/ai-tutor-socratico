@@ -18,7 +18,7 @@ export function InitialWelcomeScreen({
   const subjectList = Object.values(SUBJECTS);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[75vh] px-4 py-6 max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="flex-1 flex flex-col items-center justify-center py-3 sm:py-6 px-2 sm:px-4 max-w-4xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-200 my-auto">
       {/* Welcome Heading */}
       <div className="text-center space-y-2">
         <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 text-3xl mx-auto select-none">
