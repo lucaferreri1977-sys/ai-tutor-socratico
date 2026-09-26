@@ -300,14 +300,9 @@ export function QuizModal({
             <div className="space-y-4">
               {/* Selezione Numero Domande */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Numero di domande:
-                  </label>
-                  <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
-                    {questionCount} quesiti
-                  </span>
-                </div>
+                <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Quante domande vuoi fare?
+                </label>
                 <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                   {[
                     { count: 10, label: 'Veloce' },
