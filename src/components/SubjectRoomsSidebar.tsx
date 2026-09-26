@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { SubjectId, SUBJECTS, StudentId, AuthSession, STUDENTS, ChatSessionSummary } from '@/lib/types';
-import { Plus, Trash2, MessageSquare, PanelLeftClose, LogOut, ShieldCheck, Award, Sparkles, BookOpen } from 'lucide-react';
+import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary } from '@/lib/types';
+import { Plus, Trash2, MessageSquare, PanelLeftClose, Award, Sparkles } from 'lucide-react';
 
 interface SubjectRoomsSidebarProps {
   isOpen: boolean;
@@ -15,11 +15,7 @@ interface SubjectRoomsSidebarProps {
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
   onOpenQuiz: () => void;
-  currentUser: AuthSession;
   currentStudent: StudentId;
-  onSelectStudent?: (student: StudentId) => void;
-  onOpenParentDashboard: () => void;
-  onLogout: () => void;
 }
 
 export function SubjectRoomsSidebar({
@@ -33,13 +29,8 @@ export function SubjectRoomsSidebar({
   onNewSession,
   onDeleteSession,
   onOpenQuiz,
-  currentUser,
   currentStudent,
-  onSelectStudent,
-  onOpenParentDashboard,
-  onLogout,
 }: SubjectRoomsSidebarProps) {
-  const isParent = currentUser.role === 'parent';
   const activeStudentProfile = STUDENTS[currentStudent];
   const subjectList = Object.values(SUBJECTS);
 
@@ -87,6 +78,25 @@ export function SubjectRoomsSidebar({
             <PanelLeftClose className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Action: Nuova Chat (in evidenza nella barra laterale) */}
+        {currentSubject && (
+          <div className="p-3 pb-1 border-b border-slate-200/50 dark:border-slate-800/60">
+            <button
+              type="button"
+              onClick={() => {
+                onNewSession();
+                if (window.innerWidth < 768) onClose();
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-sky-50 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-100 font-semibold text-xs sm:text-sm flex items-center gap-2.5 border border-slate-200/90 dark:border-slate-700/80 shadow-xs hover:border-sky-300 dark:hover:border-sky-600 transition-all cursor-pointer group"
+            >
+              <div className="w-5 h-5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 flex items-center justify-center group-hover:rotate-90 transition-transform duration-200">
+                <Plus className="w-3.5 h-3.5" />
+              </div>
+              <span>Nuova chat in {SUBJECTS[currentSubject].name.split(' ')[0]}</span>
+            </button>
+          </div>
+        )}
 
         {/* Scrollable Navigation */}
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
@@ -217,74 +227,6 @@ export function SubjectRoomsSidebar({
               })
             )}
           </div>
-        </div>
-
-        {/* Footer Profile & Admin Section */}
-        <div className="p-3 border-t border-slate-200/70 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 space-y-2">
-          {isParent && onSelectStudent && (
-            <div className="flex items-center justify-between p-1.5 bg-slate-200/50 dark:bg-slate-800 rounded-xl text-xs mb-1">
-              <span className="text-[11px] text-slate-500 px-1 font-medium">Studente:</span>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => onSelectStudent('alessio')}
-                  className={`px-2 py-0.5 rounded-lg text-xs font-semibold cursor-pointer ${
-                    currentStudent === 'alessio'
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-300/50'
-                  }`}
-                >
-                  👦 Alessio
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSelectStudent('mattia')}
-                  className={`px-2 py-0.5 rounded-lg text-xs font-semibold cursor-pointer ${
-                    currentStudent === 'mattia'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-300/50'
-                  }`}
-                >
-                  🧒 Mattia
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* User profile */}
-          <div className="flex items-center justify-between px-2 py-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">{currentUser.avatar}</span>
-              <div>
-                <div className="font-semibold text-xs text-slate-800 dark:text-slate-100">
-                  {currentUser.name}
-                </div>
-                <div className="text-[10px] text-slate-400">
-                  {isParent ? 'Supervisione' : 'Scuola Media'}
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={onLogout}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Esci dal profilo"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Area Genitori */}
-          <button
-            onClick={() => {
-              onOpenParentDashboard();
-              if (window.innerWidth < 768) onClose();
-            }}
-            className="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 border border-amber-200/80 dark:border-amber-800/50 text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            Area Riservata Genitori
-          </button>
         </div>
       </aside>
     </>

@@ -357,11 +357,7 @@ export default function Home() {
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
         onOpenQuiz={() => setIsQuizModalOpen(true)}
-        currentUser={currentUser}
         currentStudent={currentStudent}
-        onSelectStudent={handleSelectStudent}
-        onOpenParentDashboard={() => setIsParentDashboardOpen(true)}
-        onLogout={handleLogout}
       />
 
       {/* Main App Content Area */}
@@ -373,9 +369,7 @@ export default function Home() {
           currentStudent={currentStudent}
           onSelectStudent={handleSelectStudent}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
-          onResetChat={handleNewSession}
           onOpenQuiz={() => setIsQuizModalOpen(true)}
-          onOpenParentDashboard={() => setIsParentDashboardOpen(true)}
           onLogout={handleLogout}
           disabled={isStreaming}
         />
@@ -387,12 +381,6 @@ export default function Home() {
               <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
               <span>{apiError}</span>
             </div>
-            <button
-              onClick={() => setIsParentDashboardOpen(true)}
-              className="text-xs font-semibold underline hover:text-amber-950 dark:hover:text-amber-100 flex items-center gap-1 cursor-pointer flex-shrink-0"
-            >
-              <Key className="w-3.5 h-3.5" /> Informazioni
-            </button>
           </div>
         )}
 

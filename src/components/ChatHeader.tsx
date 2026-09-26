@@ -3,7 +3,7 @@
 import React from 'react';
 import { SubjectId, SUBJECTS, StudentId, STUDENTS, AuthSession } from '@/lib/types';
 import { StudentSelector } from './StudentSelector';
-import { ShieldCheck, Plus, Menu, LogOut, Award, Sparkles } from 'lucide-react';
+import { Menu, LogOut, Award } from 'lucide-react';
 
 interface ChatHeaderProps {
   currentSubject: SubjectId | null;
@@ -11,9 +11,7 @@ interface ChatHeaderProps {
   currentStudent: StudentId;
   onSelectStudent: (student: StudentId) => void;
   onToggleSidebar: () => void;
-  onResetChat: () => void;
   onOpenQuiz: () => void;
-  onOpenParentDashboard: () => void;
   onLogout: () => void;
   disabled?: boolean;
 }
@@ -24,9 +22,7 @@ export function ChatHeader({
   currentStudent,
   onSelectStudent,
   onToggleSidebar,
-  onResetChat,
   onOpenQuiz,
-  onOpenParentDashboard,
   onLogout,
   disabled = false,
 }: ChatHeaderProps) {
@@ -73,7 +69,7 @@ export function ChatHeader({
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Quick Quiz Button (Available inside a subject room) */}
           {subjectMeta && (
             <button
@@ -85,20 +81,6 @@ export function ChatHeader({
               <Award className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Test con Voto</span>
               <span className="sm:hidden">Test</span>
-            </button>
-          )}
-
-          {/* Quick "+ Nuova chat" in this room */}
-          {subjectMeta && (
-            <button
-              type="button"
-              onClick={onResetChat}
-              disabled={disabled}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
-              title="Nuova conversazione nella stanza"
-            >
-              <Plus className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span className="hidden md:inline">Nuova chat</span>
             </button>
           )}
 
@@ -121,18 +103,7 @@ export function ChatHeader({
             </div>
           )}
 
-          {/* Area Genitori */}
-          <button
-            type="button"
-            onClick={onOpenParentDashboard}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-200/80 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-medium transition-colors cursor-pointer"
-            title="Area Riservata Genitori"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span className="hidden md:inline">Genitori</span>
-          </button>
-
-          {/* Logout */}
+          {/* Logout (in alto a destra) */}
           <button
             type="button"
             onClick={onLogout}
