@@ -35,5 +35,6 @@ export function getFirestoreDb() {
   return db;
 }
 
-// Collezione isolata al 100% per non intaccare altri progetti dello stesso account Firebase
+// Collezioni isolate al 100% per non intaccare altri progetti dello stesso account Firebase
 export const TUTOR_SESSIONS_COLLECTION = 'tutor_sessions';
+export const TUTOR_QUIZZES_COLLECTION = 'tutor_quizzes';

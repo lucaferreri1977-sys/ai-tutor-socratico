@@ -1,17 +1,17 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { StudentId, STUDENTS, ChatSessionSummary, AuthSession } from '@/lib/types';
+import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary, AuthSession } from '@/lib/types';
 import { ChatHeader } from '@/components/ChatHeader';
 import { ChatMessage, MessageData } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
-import { GeminiWelcome } from '@/components/GeminiWelcome';
-import { GeminiSidebar } from '@/components/GeminiSidebar';
-import { ParentModal } from '@/components/ParentModal';
+import { SubjectRoomsSidebar } from '@/components/SubjectRoomsSidebar';
+import { InitialWelcomeScreen } from '@/components/InitialWelcomeScreen';
+import { QuizModal } from '@/components/QuizModal';
 import { ParentDashboardModal } from '@/components/ParentDashboardModal';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fireCelebrationConfetti, shouldCelebrate } from '@/lib/confetti';
-import { AlertCircle, Key } from 'lucide-react';
+import { AlertCircle, Key, Award, Sparkles, BookOpen } from 'lucide-react';
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AuthSession | null>(null);
@@ -20,16 +20,19 @@ export default function Home() {
   // Student State (Alessio vs Mattia)
   const [currentStudent, setCurrentStudent] = useState<StudentId>('alessio');
 
+  // Fixed Subject Room (null initially to show the welcome prompt screen!)
+  const [currentSubject, setCurrentSubject] = useState<SubjectId | null>(null);
+
   // Active Chat Session
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
 
-  // Gemini Sidebar (open by default on desktop, collapsible)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // Sidebar state (open by default on desktop, responsive drawer on mobile)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Modals
-  const [isParentModalOpen, setIsParentModalOpen] = useState(false);
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [isParentDashboardOpen, setIsParentDashboardOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -67,7 +70,7 @@ export default function Home() {
         }
       }
     } catch {
-      // LocalStorage access fallback
+      // LocalStorage fallback
     } finally {
       setIsCheckingAuth(false);
     }
@@ -111,22 +114,32 @@ export default function Home() {
       localStorage.removeItem('socrate_auth_session');
     } catch {}
     setCurrentUser(null);
+    setCurrentSubject(null);
     setCurrentSessionId(null);
     setMessages([]);
     setSessions([]);
     setIsParentDashboardOpen(false);
   };
 
-  // Switch student (available for parent in header or sidebar)
+  // Switch student
   const handleSelectStudent = (studentId: StudentId) => {
     if (studentId === currentStudent) return;
     setCurrentStudent(studentId);
+    setCurrentSubject(null);
     setCurrentSessionId(null);
     setMessages([]);
     setApiError(null);
   };
 
-  // Reset / New Chat (Gemini "+ Nuova chat")
+  // Select Subject Room
+  const handleSelectSubject = (subjectId: SubjectId) => {
+    setCurrentSubject(subjectId);
+    setCurrentSessionId(null);
+    setMessages([]);
+    setApiError(null);
+  };
+
+  // Reset / New Chat in current room
   const handleNewSession = () => {
     setCurrentSessionId(null);
     setMessages([]);
@@ -143,6 +156,9 @@ export default function Home() {
       const data = await res.json();
       if (res.ok && data.session) {
         setCurrentSessionId(data.session.id);
+        if (data.session.subject && SUBJECTS[data.session.subject as SubjectId]) {
+          setCurrentSubject(data.session.subject as SubjectId);
+        }
         setMessages(data.session.messages || []);
       }
     } catch (e) {
@@ -169,7 +185,7 @@ export default function Home() {
 
   // Save session to Firebase Firestore
   const saveSessionToCloud = async (sessionIdToSave: string, updatedMessages: MessageData[]) => {
-    if (!currentUser || updatedMessages.length === 0) return;
+    if (!currentUser || updatedMessages.length === 0 || !currentSubject) return;
     try {
       const activeStudent = STUDENTS[currentStudent];
       await fetch('/api/sessions', {
@@ -183,6 +199,7 @@ export default function Home() {
           id: sessionIdToSave,
           studentId: currentStudent,
           studentName: activeStudent.name,
+          subject: currentSubject,
           messages: updatedMessages,
         }),
       });
@@ -195,7 +212,7 @@ export default function Home() {
 
   // Send message
   const handleSendMessage = async (text: string, imageBase64?: string) => {
-    if ((!text.trim() && !imageBase64) || isStreaming || !currentUser) return;
+    if ((!text.trim() && !imageBase64) || isStreaming || !currentUser || !currentSubject) return;
 
     setApiError(null);
 
@@ -247,6 +264,7 @@ export default function Home() {
             content: m.content,
             imageUrl: m.imageUrl,
           })),
+          subject: currentSubject,
           studentName: activeStudentProfile.name,
         }),
       });
@@ -323,34 +341,40 @@ export default function Home() {
   }
 
   const activeStudentProfile = STUDENTS[currentStudent];
+  const activeSubjectMeta = currentSubject ? SUBJECTS[currentSubject] : null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100/60 dark:bg-slate-950">
-      {/* Gemini History Sidebar */}
-      <GeminiSidebar
+      {/* Sidebar con Stanze delle Materie fisse e Cronologia */}
+      <SubjectRoomsSidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        currentSubject={currentSubject}
+        onSelectSubject={handleSelectSubject}
         sessions={sessions}
         currentSessionId={currentSessionId}
-        currentUser={currentUser}
-        currentStudent={currentStudent}
-        onSelectStudent={handleSelectStudent}
         onSelectSession={handleLoadSession}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
+        onOpenQuiz={() => setIsQuizModalOpen(true)}
+        currentUser={currentUser}
+        currentStudent={currentStudent}
+        onSelectStudent={handleSelectStudent}
         onOpenParentDashboard={() => setIsParentDashboardOpen(true)}
         onLogout={handleLogout}
       />
 
       {/* Main App Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Top Header */}
+        {/* Top Header con Hamburger ☰ e info stanza */}
         <ChatHeader
+          currentSubject={currentSubject}
           currentUser={currentUser}
           currentStudent={currentStudent}
           onSelectStudent={handleSelectStudent}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onResetChat={handleNewSession}
+          onOpenQuiz={() => setIsQuizModalOpen(true)}
           onOpenParentDashboard={() => setIsParentDashboardOpen(true)}
           onLogout={handleLogout}
           disabled={isStreaming}
@@ -358,13 +382,13 @@ export default function Home() {
 
         {/* Error Alert Banner */}
         {apiError && (
-          <div className="bg-amber-50 dark:bg-amber-950/60 border-b border-amber-200 dark:border-amber-800/60 px-4 py-2.5 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex items-center justify-between gap-3">
+          <div className="bg-amber-50 dark:bg-amber-950/60 border-b border-amber-200 dark:border-amber-800/60 px-4 py-2 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 max-w-4xl mx-auto">
               <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
               <span>{apiError}</span>
             </div>
             <button
-              onClick={() => setIsParentModalOpen(true)}
+              onClick={() => setIsParentDashboardOpen(true)}
               className="text-xs font-semibold underline hover:text-amber-950 dark:hover:text-amber-100 flex items-center gap-1 cursor-pointer flex-shrink-0"
             >
               <Key className="w-3.5 h-3.5" /> Informazioni
@@ -372,15 +396,73 @@ export default function Home() {
           </div>
         )}
 
-        {/* Chat / Welcome Area */}
+        {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 flex flex-col justify-between">
           <div className="flex-1 max-w-4xl w-full mx-auto">
-            {messages.length === 0 ? (
-              <GeminiWelcome
+            {/* 1. SE NESSUNA STANZA È SELEZIONATA: Schermata Iniziale di Benvenuto */}
+            {!currentSubject || !activeSubjectMeta ? (
+              <InitialWelcomeScreen
                 studentName={activeStudentProfile.name}
-                onSelectPrompt={(prompt) => handleSendMessage(prompt)}
+                onSelectSubject={handleSelectSubject}
+                onOpenSidebar={() => setIsSidebarOpen(true)}
               />
+            ) : messages.length === 0 ? (
+              /* 2. SE DENTRO UNA STANZA MA NESSUN MESSAGGIO: Benvenuto specifico per la materia */
+              <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 px-4 py-8 animate-in fade-in duration-200">
+                <div className="space-y-3">
+                  <div className="w-16 h-16 rounded-3xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 flex items-center justify-center text-3xl mx-auto shadow-xs select-none">
+                    {activeSubjectMeta.emoji}
+                  </div>
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100">
+                      Stanza di {activeSubjectMeta.name}
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">
+                      {activeSubjectMeta.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* NotebookLM Style Quiz Prompt Action */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-50 via-purple-50 to-sky-50 dark:from-indigo-950/40 dark:via-purple-950/40 dark:to-sky-950/40 border border-indigo-200/80 dark:border-indigo-800/60 max-w-md w-full space-y-2.5 text-left">
+                  <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-bold text-xs sm:text-sm">
+                    <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>Vuoi metterti alla prova con una verifica?</span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Fai un test interattivo di 5 domande con voto in decimi e giudizio finale:
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsQuizModalOpen(true)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Avvia Test di {activeSubjectMeta.name} con Voto
+                  </button>
+                </div>
+
+                {/* Quick Subject Prompts */}
+                <div className="w-full max-w-md space-y-2 text-left">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Oppure chiedi aiuto a Socrate su:
+                  </span>
+                  <div className="space-y-1.5">
+                    {activeSubjectMeta.quickPrompts.map((prompt, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleSendMessage(prompt)}
+                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700 bg-white dark:bg-slate-900 hover:bg-sky-50/50 dark:hover:bg-slate-800 text-left text-xs text-slate-700 dark:text-slate-300 transition-all cursor-pointer truncate"
+                      >
+                        👉 {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : (
+              /* 3. CONVERSAZIONE ATTIVA NELLA STANZA */
               <div className="py-4 space-y-2">
                 {messages.map((message) => (
                   <ChatMessage
@@ -395,25 +477,33 @@ export default function Home() {
           </div>
         </main>
 
-        {/* Bottom Chat Input */}
-        <ChatInput
-          onSendMessage={handleSendMessage}
-          disabled={isStreaming}
-        />
+        {/* Bottom Chat Input (attivo solo se è selezionata una stanza) */}
+        {currentSubject && (
+          <ChatInput
+            onSendMessage={handleSendMessage}
+            disabled={isStreaming}
+          />
+        )}
       </div>
 
-      {/* Area Riservata Genitori Modal */}
+      {/* NotebookLM Style Quiz Modal */}
+      {currentSubject && (
+        <QuizModal
+          isOpen={isQuizModalOpen}
+          onClose={() => setIsQuizModalOpen(false)}
+          subject={currentSubject}
+          studentId={currentStudent}
+          studentName={activeStudentProfile.name}
+          authToken={currentUser.token}
+        />
+      )}
+
+      {/* Area Riservata Genitori Modal con Statistiche e Votazioni Test */}
       <ParentDashboardModal
         isOpen={isParentDashboardOpen}
         onClose={() => setIsParentDashboardOpen(false)}
         authToken={currentUser.token}
         isParentRole={currentUser.role === 'parent'}
-      />
-
-      {/* Pedagogical Info Modal */}
-      <ParentModal
-        isOpen={isParentModalOpen}
-        onClose={() => setIsParentModalOpen(false)}
       />
     </div>
   );

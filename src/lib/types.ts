@@ -71,6 +71,39 @@ export interface ChatSessionSummary {
   messageCount: number;
 }
 
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctOptionIndex: number;
+  explanation: string;
+}
+
+export interface QuizAnswer {
+  questionIndex: number;
+  questionText: string;
+  selectedOption: number;
+  correctOption: number;
+  isCorrect: boolean;
+  explanation: string;
+}
+
+export interface QuizTestRecord {
+  id: string;
+  studentId: StudentId;
+  studentName: string;
+  subject: SubjectId;
+  subjectName: string;
+  topic: string;
+  score: number;
+  maxScore: number;
+  grade: number; // Voto in decimi (es. 8 o 10)
+  percentage: number;
+  answers: QuizAnswer[];
+  feedback: string;
+  completedAt: string;
+}
+
 export const SUBJECTS: Record<SubjectId, SubjectMeta> = {
   matematica: {
     id: 'matematica',
