@@ -216,6 +216,34 @@ export function SubjectRoomsSidebar({
             {/* TAB CONTENT: QUIZZES (STORICO TEST) */}
             {activeTab === 'quizzes' && (
               <div className="space-y-1.5">
+                {/* Pulsante 1: Vedi tutti i test completati */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenTestHistory();
+                    if (window.innerWidth < 768) onClose();
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer mb-1"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  <span>Vedi tutti i test completati</span>
+                </button>
+
+                {/* Pulsante 2: Avvia verifica nella materia attiva */}
+                {currentSubject && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenQuiz();
+                      if (window.innerWidth < 768) onClose();
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer mb-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Avvia verifica in {SUBJECTS[currentSubject].name.split(' ')[0]}</span>
+                  </button>
+                )}
+
                 {visibleQuizzes.length === 0 ? (
                   <div className="text-center py-6 px-3">
                     <p className="text-xs text-slate-400">
