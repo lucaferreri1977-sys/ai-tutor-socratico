@@ -124,11 +124,6 @@ export function SubjectRoomsSidebar({
               </div>
             ) : (
               <>
-                <div className="px-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>{currentSubjectMeta.emoji}</span>
-                  <span className="truncate">{currentSubjectMeta.name}</span>
-                </div>
-
                 {/* Tab Switcher */}
                 <div className="flex items-center p-1 bg-slate-200/60 dark:bg-slate-800/80 rounded-xl text-xs font-semibold">
                   <button
