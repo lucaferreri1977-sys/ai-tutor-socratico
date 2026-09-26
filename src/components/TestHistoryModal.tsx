@@ -28,31 +28,33 @@ export function TestHistoryModal({
 
   useEffect(() => {
     setViewingQuiz(selectedQuiz || null);
-    if (selectedQuiz?.subject) {
-      setSelectedSubjectFilter(selectedQuiz.subject);
-    } else if (currentSubject) {
+    if (currentSubject) {
       setSelectedSubjectFilter(currentSubject);
+    } else if (selectedQuiz?.subject) {
+      setSelectedSubjectFilter(selectedQuiz.subject);
     }
   }, [selectedQuiz, currentSubject, isOpen]);
 
   if (!isOpen) return null;
 
   const studentProfile = STUDENTS[studentId];
+  const activeSubjectMeta = currentSubject ? SUBJECTS[currentSubject] : null;
 
-  // Filter quizzes for the active student and selected subject
+  // Filter quizzes for the active student and strictly for currentSubject if present
   const studentQuizzes = quizzes.filter((q) => q.studentId === studentId);
   const filteredQuizzes = studentQuizzes.filter((q) => {
+    if (currentSubject) return q.subject === currentSubject;
     if (selectedSubjectFilter === 'all') return true;
     return q.subject === selectedSubjectFilter;
   });
 
-  // Calculate statistics
-  const totalTests = studentQuizzes.length;
+  // Calculate statistics specifically for the filtered quizzes
+  const totalTests = filteredQuizzes.length;
   const avgGrade = totalTests > 0
-    ? (studentQuizzes.reduce((acc, q) => acc + (q.grade || 0), 0) / totalTests).toFixed(1)
+    ? (filteredQuizzes.reduce((acc, q) => acc + (q.grade || 0), 0) / totalTests).toFixed(1)
     : '-';
-  const totalCorrect = studentQuizzes.reduce((acc, q) => acc + (q.score || 0), 0);
-  const totalQuestions = studentQuizzes.reduce((acc, q) => acc + (q.maxScore || 5), 0);
+  const totalCorrect = filteredQuizzes.reduce((acc, q) => acc + (q.score || 0), 0);
+  const totalQuestions = filteredQuizzes.reduce((acc, q) => acc + (q.maxScore || 5), 0);
   const correctPercent = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
 
   return (
@@ -66,10 +68,14 @@ export function TestHistoryModal({
             </div>
             <div className="min-w-0">
               <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 flex items-center gap-1.5 sm:gap-2 truncate">
-                <span>Storico Verifiche &bull; {studentProfile.name}</span>
+                <span>
+                  Storico Verifiche &bull; {activeSubjectMeta ? `${activeSubjectMeta.name} • ` : ''}{studentProfile.name}
+                </span>
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-500 truncate">
-                Tutti i test completati con votazione in decimi e correzione
+                {activeSubjectMeta
+                  ? `Tutti i test completati di ${activeSubjectMeta.name} con votazione in decimi e correzione`
+                  : 'Tutti i test completati con votazione in decimi e correzione'}
               </p>
             </div>
           </div>
@@ -204,43 +210,45 @@ export function TestHistoryModal({
                 </div>
               </div>
 
-              {/* Subject Filter Bar */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 text-xs touch-pan-x -mx-1 px-1">
-                <span className="text-slate-400 flex items-center gap-1 font-semibold whitespace-nowrap pl-1">
-                  <Filter className="w-3 h-3" /> Materia:
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedSubjectFilter('all')}
-                  className={`px-2.5 py-1 rounded-full font-medium whitespace-nowrap transition-colors cursor-pointer ${
-                    selectedSubjectFilter === 'all'
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                  }`}
-                >
-                  Tutte
-                </button>
-                {Object.values(SUBJECTS).map((subj) => {
-                  const count = studentQuizzes.filter((q) => q.subject === subj.id).length;
-                  if (count === 0 && selectedSubjectFilter !== subj.id) return null;
-                  return (
-                    <button
-                      key={subj.id}
-                      type="button"
-                      onClick={() => setSelectedSubjectFilter(subj.id)}
-                      className={`px-2.5 py-1 rounded-full font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1 ${
-                        selectedSubjectFilter === subj.id
-                          ? 'bg-sky-600 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      <span>{subj.emoji}</span>
-                      <span>{subj.name.split(' ')[0]}</span>
-                      {count > 0 && <span className="opacity-75 text-[10px]">({count})</span>}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Subject Filter Bar (mostrato solo se non è già attiva una specifica materia) */}
+              {!currentSubject && (
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 text-xs touch-pan-x -mx-1 px-1">
+                  <span className="text-slate-400 flex items-center gap-1 font-semibold whitespace-nowrap pl-1">
+                    <Filter className="w-3 h-3" /> Materia:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubjectFilter('all')}
+                    className={`px-2.5 py-1 rounded-full font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                      selectedSubjectFilter === 'all'
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    Tutte
+                  </button>
+                  {Object.values(SUBJECTS).map((subj) => {
+                    const count = studentQuizzes.filter((q) => q.subject === subj.id).length;
+                    if (count === 0 && selectedSubjectFilter !== subj.id) return null;
+                    return (
+                      <button
+                        key={subj.id}
+                        type="button"
+                        onClick={() => setSelectedSubjectFilter(subj.id)}
+                        className={`px-2.5 py-1 rounded-full font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1 ${
+                          selectedSubjectFilter === subj.id
+                            ? 'bg-sky-600 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span>{subj.emoji}</span>
+                        <span>{subj.name.split(' ')[0]}</span>
+                        {count > 0 && <span className="opacity-75 text-[10px]">({count})</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Quizzes List */}
               <div className="space-y-2">
@@ -251,12 +259,14 @@ export function TestHistoryModal({
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {totalTests === 0
-                          ? 'Nessun test svolto finora.'
-                          : 'Nessun test trovato per questa materia.'}
+                        {activeSubjectMeta
+                          ? `Nessun test ancora svolto in ${activeSubjectMeta.name}.`
+                          : 'Nessun test svolto finora.'}
                       </p>
                       <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                        Puoi avviare una verifica in qualsiasi momento da una stanza di studio, anche allegando le foto del tuo libro di testo!
+                        {activeSubjectMeta
+                          ? `Puoi avviare una verifica in ${activeSubjectMeta.name} in qualsiasi momento, anche allegando le foto del tuo libro di testo!`
+                          : 'Puoi avviare una verifica in qualsiasi momento da una stanza di studio, anche allegando le foto del tuo libro di testo!'}
                       </p>
                     </div>
 
@@ -270,7 +280,7 @@ export function TestHistoryModal({
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        Inizia una verifica adesso
+                        Inizia una verifica in {activeSubjectMeta?.name.split(' ')[0] || 'questa materia'}
                       </button>
                     )}
                   </div>
