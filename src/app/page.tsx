@@ -9,7 +9,7 @@ import { SubjectRoomsSidebar } from '@/components/SubjectRoomsSidebar';
 import { InitialWelcomeScreen } from '@/components/InitialWelcomeScreen';
 import { QuizModal } from '@/components/QuizModal';
 import { TestHistoryModal } from '@/components/TestHistoryModal';
-import { ParentDashboardModal } from '@/components/ParentDashboardModal';
+import { ParentDashboardView } from '@/components/ParentDashboardView';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fireCelebrationConfetti, shouldCelebrate } from '@/lib/confetti';
 import { AlertCircle, Award, Sparkles } from 'lucide-react';
@@ -36,7 +36,6 @@ export default function Home() {
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [isTestHistoryOpen, setIsTestHistoryOpen] = useState(false);
   const [selectedQuizForModal, setSelectedQuizForModal] = useState<QuizTestRecord | null>(null);
-  const [isParentDashboardOpen, setIsParentDashboardOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Saved sessions and quizzes for active student
@@ -123,9 +122,6 @@ export default function Home() {
     if (session.role === 'alessio' || session.role === 'mattia') {
       setCurrentStudent(session.role);
     }
-    if (session.role === 'parent') {
-      setIsParentDashboardOpen(true);
-    }
   };
 
   // Logout / Switch User
@@ -139,7 +135,6 @@ export default function Home() {
     setMessages([]);
     setSessions([]);
     setQuizzes([]);
-    setIsParentDashboardOpen(false);
     setIsTestHistoryOpen(false);
     setIsQuizModalOpen(false);
   };
@@ -351,6 +346,16 @@ export default function Home() {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
+  // Se l'utente autenticato è il Genitore, mostra ESCLUSIVAMENTE la pagina statistiche dedicata ai genitori
+  if (currentUser.role === 'parent') {
+    return (
+      <ParentDashboardView
+        currentUser={currentUser}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   const activeStudentProfile = STUDENTS[currentStudent];
   const activeSubjectMeta = currentSubject ? SUBJECTS[currentSubject] : null;
   const studentQuizzes = quizzes.filter((q) => q.studentId === currentStudent);
@@ -511,14 +516,6 @@ export default function Home() {
             setIsQuizModalOpen(true);
           }
         }}
-      />
-
-      {/* Area Riservata Genitori Modal */}
-      <ParentDashboardModal
-        isOpen={isParentDashboardOpen}
-        onClose={() => setIsParentDashboardOpen(false)}
-        authToken={currentUser.token}
-        isParentRole={currentUser.role === 'parent'}
       />
     </div>
   );
