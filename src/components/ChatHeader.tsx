@@ -22,31 +22,34 @@ export function ChatHeader({
 
   return (
     <header className="w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-4 py-2 sticky top-0 z-30">
-      <div className="flex items-center justify-between gap-2 max-w-7xl mx-auto">
-        {/* Left: Tre Linee Orizzontali (☰) & AI Tutor Socratico */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <div className="relative flex items-center justify-between gap-2 max-w-7xl mx-auto min-h-[40px]">
+        {/* Left: Tre Linee Orizzontali (☰) nell'angolo sinistro */}
+        <div className="flex items-center z-10">
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer flex-shrink-0"
+            className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer flex-shrink-0 touch-manipulation"
             title="Menu laterale (☰)"
             aria-label="Menu laterale"
           >
             <Menu className="w-5 h-5 text-slate-800 dark:text-slate-100" />
           </button>
+        </div>
 
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-xs text-base select-none flex-shrink-0">
+        {/* Center: Titolo dell'applicazione perfettamente centrato nella pagina */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-12 sm:px-24">
+          <div className="flex items-center gap-2 pointer-events-auto">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-xs text-sm sm:text-base select-none flex-shrink-0">
               🦉
             </div>
-            <h1 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-tight truncate">
+            <h1 className="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-base leading-tight truncate">
               AI Tutor Socratico
             </h1>
           </div>
         </div>
 
-        {/* Right Controls: Profilo Studente e Logout */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+        {/* Right: Profilo Studente e Logout nell'angolo destro */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0 z-10">
           {/* Student badge */}
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-100">
             <span className="text-sm">{activeStudentProfile.avatar}</span>
@@ -57,8 +60,9 @@ export function ChatHeader({
           <button
             type="button"
             onClick={onLogout}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer touch-manipulation"
             title="Esci dal profilo"
+            aria-label="Esci dal profilo"
           >
             <LogOut className="w-4 h-4" />
           </button>

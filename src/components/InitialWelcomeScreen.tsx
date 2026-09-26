@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SubjectId, SUBJECTS } from '@/lib/types';
-import { ArrowRight, Menu } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface InitialWelcomeScreenProps {
   studentName: string;
