@@ -13,16 +13,18 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: 'Non autorizzato' }), { status: 401 });
     }
 
-    const { subject, topic, images } = (await req.json()) as {
+    const { subject, topic, images, questionCount: rawCount } = (await req.json()) as {
       subject: SubjectId;
       topic?: string;
       images?: string[];
+      questionCount?: number;
     };
 
     if (!subject || !SUBJECTS[subject]) {
       return new Response(JSON.stringify({ error: 'Materia non valida' }), { status: 400 });
     }
 
+    const questionCount = Math.max(3, Math.min(15, Number(rawCount) || 5));
     const subjectMeta = SUBJECTS[subject];
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
 
@@ -38,16 +40,16 @@ export async function POST(req: Request) {
 
     const systemPrompt = `
 Sei un esperto docente per la scuola secondaria di primo grado (scuola media italiana, ragazzi di 11-14 anni).
-Il tuo compito è creare un test didattico formativo di 5 domande a risposta multipla per la materia: **${subjectMeta.name}** (${subjectMeta.category}).
+Il tuo compito è creare un test didattico formativo di ${questionCount} domande a risposta multipla per la materia: **${subjectMeta.name}** (${subjectMeta.category}).
 
 ${hasImages ? `ATTENZIONE SPECIFICA SULLE FOTO FORNITE:
 Lo studente ha caricato ${images.length} foto contenenti pagine di libro di testo, schede o appunti di quaderno.
 DEVI LEGGERE E ANALIZZARE ATTENTAMENTE IL TESTO, LE IMMAGINI, I GRAFICI, LE DEFINIZIONI, LE FORMULE E GLI ESERCIZI NELLE IMMAGINI FORNITE.
-Le 5 domande DEVONO essere basate direttamente su quanto spiegato o illustrato in queste pagine fotografate.
+Le ${questionCount} domande DEVONO essere basate direttamente su quanto spiegato o illustrato in queste pagine fotografate.
 Se lo studente ha indicato un argomento ("${promptTopic || 'non specificato'}"), concentrati su quella sezione delle pagine; altrimenti copri i punti chiave delle pagine fotografate e indica l'argomento dedotto nel campo "topic".` : ''}
 
 REGOLE TASSATIVE:
-1. Genera ESATTAMENTE 5 domande a risposta multipla calibrate per il livello scolastico delle medie.
+1. Genera ESATTAMENTE ${questionCount} domande a risposta multipla calibrate per il livello scolastico delle medie.
 2. Ogni domanda deve avere ESATTAMENTE 4 opzioni di risposta (una sola corretta e tre plausibili distrattori didattici).
 3. Includi una spiegazione chiara, incoraggiante e formativa per ciascuna domanda.
 4. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown extra o testo fuori dal JSON.
@@ -63,7 +65,7 @@ Formato JSON atteso:
       "correctOptionIndex": 0,
       "explanation": "Spiegazione didattica del perché questa è la risposta corretta..."
     },
-    ... altre 4 domande
+    ... altre ${questionCount - 1} domande
   ]
 }
 `;
@@ -73,9 +75,9 @@ Formato JSON atteso:
     if (hasImages) {
       userPromptText = `Ecco le foto delle pagine del libro/quaderno su cui basare il test di verifica per ${subjectMeta.name}.
 ${promptTopic ? `Argomento di riferimento specificato: "${promptTopic}".` : 'Identifica l\'argomento dalle pagine.'}
-Genera 5 domande a scelta multipla basate su queste pagine. Rispondi solo in formato JSON.`;
+Genera ${questionCount} domande a scelta multipla basate su queste pagine. Rispondi solo in formato JSON.`;
     } else {
-      userPromptText = `Genera un test di verifica di 5 domande per ${subjectMeta.name} ${promptTopic ? `sull'argomento: "${promptTopic}"` : 'sul programma generale delle medie'}. Rispondi solo in formato JSON.`;
+      userPromptText = `Genera un test di verifica di ${questionCount} domande per ${subjectMeta.name} ${promptTopic ? `sull'argomento: "${promptTopic}"` : 'sul programma generale delle medie'}. Rispondi solo in formato JSON.`;
     }
 
     const userContent: Array<

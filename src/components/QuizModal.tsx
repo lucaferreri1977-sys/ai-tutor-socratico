@@ -71,6 +71,7 @@ export function QuizModal({
   onQuizCompleted,
 }: QuizModalProps) {
   const [topicInput, setTopicInput] = useState('');
+  const [questionCount, setQuestionCount] = useState<number>(5);
   const [images, setImages] = useState<AttachedImage[]>([]);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -139,6 +140,7 @@ export function QuizModal({
           subject,
           topic: topicInput.trim() || undefined,
           images: images.length > 0 ? images.map((img) => img.dataUrl) : undefined,
+          questionCount,
         }),
       });
 
@@ -278,7 +280,7 @@ export function QuizModal({
                 Verifica di {subjectMeta.name}
               </h2>
               <p className="text-xs text-slate-500">
-                5 domande a risposta multipla con voto in decimi per {studentName}
+                {questionCount} domande a risposta multipla con voto in decimi per {studentName}
               </p>
             </div>
           </div>
@@ -293,9 +295,40 @@ export function QuizModal({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
-          {/* STEP 1: Quiz setup screen (Argomento + Caricamento Foto Libro) */}
+          {/* STEP 1: Quiz setup screen (Argomento + Numero Domande + Caricamento Foto Libro) */}
           {questions.length === 0 && !loading && (
             <div className="space-y-4">
+              {/* Selezione Numero Domande */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Numero di domande:
+                  </label>
+                  <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                    {questionCount} quesiti
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {[3, 5, 8, 10].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setQuestionCount(num)}
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 border ${
+                        questionCount === num
+                          ? 'bg-sky-600 text-white border-sky-600 shadow-xs ring-2 ring-sky-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-sky-300 dark:hover:border-sky-700'
+                      }`}
+                    >
+                      <span className="text-sm font-black">{num}</span>
+                      <span className="text-[10px] font-normal opacity-85">
+                        {num === 3 ? 'Veloce' : num === 5 ? 'Standard' : num === 8 ? 'Approfondito' : 'Completo'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Argomento Opzionale */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -418,8 +451,8 @@ export function QuizModal({
                 >
                   <Sparkles className="w-4 h-4" />
                   {images.length > 0
-                    ? `Avvia Verifica basata sulle ${images.length} foto (5 domande)`
-                    : 'Avvia Verifica (5 domande)'}
+                    ? `Avvia Verifica da ${images.length} foto (${questionCount} domande)`
+                    : `Avvia Verifica (${questionCount} domande)`}
                 </button>
               </div>
             </div>
@@ -437,8 +470,8 @@ export function QuizModal({
                 </p>
                 <p className="text-xs text-slate-500">
                   {images.length > 0
-                    ? `Analisi del materiale fotografato e generazione di 5 domande per ${subjectMeta.name}`
-                    : `Generazione di 5 domande didattiche per ${subjectMeta.name}`}
+                    ? `Analisi del materiale fotografato e generazione di ${questionCount} domande per ${subjectMeta.name}`
+                    : `Generazione di ${questionCount} domande didattiche per ${subjectMeta.name}`}
                 </p>
               </div>
             </div>
