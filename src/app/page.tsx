@@ -35,6 +35,7 @@ export default function Home() {
   // Modals
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [isTestHistoryOpen, setIsTestHistoryOpen] = useState(false);
+  const [selectedQuizForModal, setSelectedQuizForModal] = useState<QuizTestRecord | null>(null);
   const [isParentDashboardOpen, setIsParentDashboardOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -367,7 +368,14 @@ export default function Home() {
         onSelectSession={handleLoadSession}
         onNewSession={handleNewSession}
         onOpenQuiz={() => setIsQuizModalOpen(true)}
-        onOpenTestHistory={() => setIsTestHistoryOpen(true)}
+        onOpenTestHistory={() => {
+          setSelectedQuizForModal(null);
+          setIsTestHistoryOpen(true);
+        }}
+        onSelectQuizDetail={(quiz) => {
+          setSelectedQuizForModal(quiz);
+          setIsTestHistoryOpen(true);
+        }}
         currentStudent={currentStudent}
         quizzes={quizzes}
       />
@@ -382,7 +390,10 @@ export default function Home() {
           onSelectStudent={handleSelectStudent}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onOpenQuiz={() => setIsQuizModalOpen(true)}
-          onOpenTestHistory={() => setIsTestHistoryOpen(true)}
+          onOpenTestHistory={() => {
+            setSelectedQuizForModal(null);
+            setIsTestHistoryOpen(true);
+          }}
           onLogout={handleLogout}
           disabled={isStreaming}
           testCount={studentQuizzes.length}
@@ -423,26 +434,6 @@ export default function Home() {
                       {activeSubjectMeta.description}
                     </p>
                   </div>
-                </div>
-
-                {/* Pulsanti Rapidi Azione: Nuova Verifica e Storico */}
-                <div className="flex items-center justify-center gap-2.5 w-full max-w-md">
-                  <button
-                    type="button"
-                    onClick={() => setIsQuizModalOpen(true)}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Nuova Verifica con Voto</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsTestHistoryOpen(true)}
-                    className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Award className="w-4 h-4 text-amber-500" />
-                    <span>Storico Test</span>
-                  </button>
                 </div>
 
                 {/* Quick Subject Prompts */}
@@ -505,12 +496,17 @@ export default function Home() {
       {/* Storico Test Modal accessibile da studenti e genitori */}
       <TestHistoryModal
         isOpen={isTestHistoryOpen}
-        onClose={() => setIsTestHistoryOpen(false)}
+        onClose={() => {
+          setIsTestHistoryOpen(false);
+          setSelectedQuizForModal(null);
+        }}
         studentId={currentStudent}
         quizzes={quizzes}
         currentSubject={currentSubject}
+        selectedQuiz={selectedQuizForModal}
         onOpenNewTest={() => {
           setIsTestHistoryOpen(false);
+          setSelectedQuizForModal(null);
           if (currentSubject) {
             setIsQuizModalOpen(true);
           }

@@ -31,18 +31,6 @@ export function InitialWelcomeScreen({
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
           Scegli la materia per iniziare lo studio guidato o metterti alla prova con una verifica:
         </p>
-
-        {/* Mobile Open Sidebar */}
-        <div className="md:hidden pt-1">
-          <button
-            type="button"
-            onClick={onOpenSidebar}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs cursor-pointer"
-          >
-            <Menu className="w-3.5 h-3.5" />
-            <span>Mostra menu laterale (☰)</span>
-          </button>
-        </div>
       </div>
 
       {/* Grid of Subject Rooms */}

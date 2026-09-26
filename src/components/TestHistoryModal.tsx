@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SubjectId, SUBJECTS, StudentId, STUDENTS, QuizTestRecord } from '@/lib/types';
 import { X, Award, ArrowLeft, ChevronRight, CheckCircle2, XCircle, Sparkles, Filter } from 'lucide-react';
 
@@ -11,6 +11,7 @@ interface TestHistoryModalProps {
   quizzes: QuizTestRecord[];
   currentSubject?: SubjectId | null;
   onOpenNewTest?: () => void;
+  selectedQuiz?: QuizTestRecord | null;
 }
 
 export function TestHistoryModal({
@@ -20,9 +21,19 @@ export function TestHistoryModal({
   quizzes,
   currentSubject = null,
   onOpenNewTest,
+  selectedQuiz = null,
 }: TestHistoryModalProps) {
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>(currentSubject || 'all');
-  const [viewingQuiz, setViewingQuiz] = useState<QuizTestRecord | null>(null);
+  const [viewingQuiz, setViewingQuiz] = useState<QuizTestRecord | null>(selectedQuiz);
+
+  useEffect(() => {
+    setViewingQuiz(selectedQuiz || null);
+    if (selectedQuiz?.subject) {
+      setSelectedSubjectFilter(selectedQuiz.subject);
+    } else if (currentSubject) {
+      setSelectedSubjectFilter(currentSubject);
+    }
+  }, [selectedQuiz, currentSubject, isOpen]);
 
   if (!isOpen) return null;
 

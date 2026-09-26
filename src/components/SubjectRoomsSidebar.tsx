@@ -216,87 +216,55 @@ export function SubjectRoomsSidebar({
             {/* TAB CONTENT: QUIZZES (STORICO TEST) */}
             {activeTab === 'quizzes' && (
               <div className="space-y-1.5">
-                {/* Action: Nuova verifica se in una stanza */}
-                {currentSubject && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenQuiz();
-                      if (window.innerWidth < 768) onClose();
-                    }}
-                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer mb-2"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Nuova verifica</span>
-                  </button>
-                )}
-
-                {/* Lista test completati */}
                 {visibleQuizzes.length === 0 ? (
-                  <div className="text-center py-6 px-3 space-y-1">
+                  <div className="text-center py-6 px-3">
                     <p className="text-xs text-slate-400">
                       Nessun test ancora svolto.
                     </p>
-                    <p className="text-[11px] text-slate-400">
-                      Fai una verifica per vedere qui voti e correzioni!
-                    </p>
                   </div>
                 ) : (
-                  <>
-                    {visibleQuizzes.slice(0, 10).map((quiz) => (
-                      <div
-                        key={quiz.id}
-                        onClick={() => {
-                          if (onSelectQuizDetail) {
-                            onSelectQuizDetail(quiz);
-                          } else {
-                            onOpenTestHistory();
-                          }
-                          if (window.innerWidth < 768) onClose();
-                        }}
-                        className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 border border-slate-200/70 dark:border-slate-800 transition-all cursor-pointer flex items-center justify-between gap-2 group"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                            <span>{SUBJECTS[quiz.subject as SubjectId]?.emoji}</span>
-                            <span className="truncate">{quiz.topic}</span>
-                          </div>
-                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5">
-                            {new Date(quiz.completedAt).toLocaleDateString([], {
-                              day: '2-digit',
-                              month: 'short',
-                            })}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span
-                            className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
-                              quiz.grade >= 8
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                : quiz.grade >= 6
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                            }`}
-                          >
-                            {quiz.grade}/10
-                          </span>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-600" />
-                        </div>
-                      </div>
-                    ))}
-
-                    <button
-                      type="button"
+                  visibleQuizzes.slice(0, 15).map((quiz) => (
+                    <div
+                      key={quiz.id}
                       onClick={() => {
-                        onOpenTestHistory();
+                        if (onSelectQuizDetail) {
+                          onSelectQuizDetail(quiz);
+                        } else {
+                          onOpenTestHistory();
+                        }
                         if (window.innerWidth < 768) onClose();
                       }}
-                      className="w-full py-2 text-center text-xs text-sky-600 dark:text-sky-400 hover:underline font-semibold cursor-pointer pt-1"
+                      className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 border border-slate-200/70 dark:border-slate-800 transition-all cursor-pointer flex items-center justify-between gap-2 group"
                     >
-                      Vedi tutti i test completati &rarr;
-                    </button>
-                  </>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                          <span>{SUBJECTS[quiz.subject as SubjectId]?.emoji}</span>
+                          <span className="truncate">{quiz.topic}</span>
+                        </div>
+                        <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5">
+                          {new Date(quiz.completedAt).toLocaleDateString([], {
+                            day: '2-digit',
+                            month: 'short',
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span
+                          className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+                            quiz.grade >= 8
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                              : quiz.grade >= 6
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                          }`}
+                        >
+                          {quiz.grade}/10
+                        </span>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-600" />
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             )}
