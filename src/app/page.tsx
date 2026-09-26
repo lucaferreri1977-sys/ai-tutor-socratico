@@ -12,7 +12,7 @@ import { TestHistoryModal } from '@/components/TestHistoryModal';
 import { ParentDashboardView } from '@/components/ParentDashboardView';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fireCelebrationConfetti, shouldCelebrate } from '@/lib/confetti';
-import { AlertCircle, Award, Sparkles } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<AuthSession | null>(null);
@@ -417,8 +417,8 @@ export default function Home() {
                 onOpenSidebar={() => setIsSidebarOpen(true)}
               />
             ) : messages.length === 0 ? (
-              /* 2. SE DENTRO UNA STANZA MA NESSUN MESSAGGIO: Schermata pulita senza doppioni */
-              <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 px-4 py-8 animate-in fade-in duration-200">
+              /* 2. SE DENTRO UNA STANZA MA NESSUN MESSAGGIO: Schermata pulita solo icona e titolo */
+              <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-4 px-4 py-8 animate-in fade-in duration-200">
                 <div className="space-y-2">
                   <div className="w-16 h-16 rounded-3xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 flex items-center justify-center text-3xl mx-auto shadow-xs select-none">
                     {activeSubjectMeta.emoji}
@@ -430,25 +430,6 @@ export default function Home() {
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">
                       {activeSubjectMeta.description}
                     </p>
-                  </div>
-                </div>
-
-                {/* Quick Subject Prompts */}
-                <div className="w-full max-w-md space-y-2 text-left pt-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Chiedi aiuto a Socrate su:
-                  </span>
-                  <div className="space-y-1.5">
-                    {activeSubjectMeta.quickPrompts.map((prompt, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => handleSendMessage(prompt)}
-                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700 bg-white dark:bg-slate-900 hover:bg-sky-50/50 dark:hover:bg-slate-800 text-left text-xs text-slate-700 dark:text-slate-300 transition-all cursor-pointer truncate"
-                      >
-                        👉 {prompt}
-                      </button>
-                    ))}
                   </div>
                 </div>
               </div>
