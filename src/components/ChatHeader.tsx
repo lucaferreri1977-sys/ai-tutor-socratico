@@ -9,6 +9,7 @@ interface ChatHeaderProps {
   currentStudent: StudentId;
   onToggleSidebar: () => void;
   onLogout: () => void;
+  onTitleClick?: () => void;
   disabled?: boolean;
 }
 
@@ -17,8 +18,17 @@ export function ChatHeader({
   currentStudent,
   onToggleSidebar,
   onLogout,
+  onTitleClick,
 }: ChatHeaderProps) {
   const activeStudentProfile = STUDENTS[currentStudent];
+
+  const handleRefresh = () => {
+    if (onTitleClick) {
+      onTitleClick();
+    } else if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  };
 
   return (
     <header className="w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-2 sm:px-3 py-2 sticky top-0 z-30">
@@ -36,16 +46,22 @@ export function ChatHeader({
           </button>
         </div>
 
-        {/* Center: Titolo dell'applicazione perfettamente centrato nella pagina */}
+        {/* Center: Titolo dell'applicazione perfettamente centrato nella pagina - Cliccabile per refresh */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-12 sm:px-24">
-          <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="flex items-center gap-2 pointer-events-auto cursor-pointer p-1 sm:p-1.5 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 active:scale-95 transition-all select-none touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+            title="Ricarica l'applicazione"
+            aria-label="AI Tutor Socratico - Ricarica la pagina"
+          >
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-xs text-sm sm:text-base select-none flex-shrink-0">
               🦉
             </div>
             <h1 className="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-base leading-tight truncate">
               AI Tutor Socratico
             </h1>
-          </div>
+          </button>
         </div>
 
         {/* Right: Profilo Studente e Logout nell'angolo destro */}

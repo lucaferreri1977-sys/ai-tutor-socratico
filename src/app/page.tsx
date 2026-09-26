@@ -393,6 +393,11 @@ export default function Home() {
           currentStudent={currentStudent}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onLogout={handleLogout}
+          onTitleClick={() => {
+            if (typeof window !== 'undefined') {
+              window.location.reload();
+            }
+          }}
           disabled={isStreaming}
         />
 
