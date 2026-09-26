@@ -65,42 +65,9 @@ export function ChatInput({
     }
   };
 
-  const handleQuickAction = (text: string) => {
-    if (disabled) return;
-    onSendMessage(text, selectedImage || undefined);
-    setSelectedImage(null);
-  };
-
   return (
     <div className="w-full bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-3 sm:p-4">
       <div className="max-w-4xl mx-auto space-y-2.5">
-        {/* Quick Socratic chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => handleQuickAction('Non ho capito, potresti farmi un esempio simile con numeri o parole diverse?')}
-            className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200/60 dark:border-amber-800/40 whitespace-nowrap transition-colors cursor-pointer"
-          >
-            💡 Fammi un esempio simile
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => handleQuickAction('Qual è il prossimo piccolo passo che dovrei fare?')}
-            className="px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/60 border border-sky-200/60 dark:border-sky-800/40 whitespace-nowrap transition-colors cursor-pointer"
-          >
-            🧩 Qual è il prossimo passo?
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => handleQuickAction('Ho provato a ragionare così: puoi dirmi se il procedimento è corretto?')}
-            className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/60 dark:border-emerald-800/40 whitespace-nowrap transition-colors cursor-pointer"
-          >
-            🔍 Controlla se il mio ragionamento fila
-          </button>
-        </div>
 
         {/* Selected image preview */}
         {selectedImage && (
