@@ -202,20 +202,7 @@ export function SubjectRoomsSidebar({
                 {/* TAB CONTENT: QUIZZES (STORICO TEST) */}
                 {activeTab === 'quizzes' && (
                   <div className="space-y-1.5">
-                    {/* Pulsante 1: Vedi tutte le verifiche di questa materia */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenTestHistory();
-                        if (window.innerWidth < 768) onClose();
-                      }}
-                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer mb-1"
-                    >
-                      <Award className="w-3.5 h-3.5" />
-                      <span>Vedi verifiche di {currentSubjectMeta.name.split(' ')[0]}</span>
-                    </button>
-
-                    {/* Pulsante 2: Avvia verifica nella materia attiva */}
+                    {/* Pulsante: Avvia verifica nella materia attiva */}
                     <button
                       type="button"
                       onClick={() => {
