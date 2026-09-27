@@ -4,6 +4,7 @@ import { jsonrepair } from 'jsonrepair';
 import { SubjectId, SUBJECTS, QuizQuestion, StudentId, QuizTestRecord, ReinforcementRecapPoint } from '@/lib/types';
 import { getAuthorizedUser } from '@/lib/auth-check';
 import { getFirestoreDb, TUTOR_QUIZZES_COLLECTION } from '@/lib/firebase-admin';
+import { cleanTopicInput } from '@/lib/topic-utils';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -130,8 +131,12 @@ export async function POST(req: Request) {
 
     const google = createGoogleGenerativeAI({ apiKey });
     const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-    const promptTopic = topic && topic.trim().length > 0 ? topic.trim() : '';
-    const questionCount = Math.max(5, Math.min(30, Number(rawCount) || 10));
+    const cleanedTopic = cleanTopicInput(topic);
+    const promptTopic = cleanedTopic.length > 0 ? cleanedTopic : '';
+    // Il numero di domande è ESCLUSIVAMENTE quello preimpostato dai pulsanti (10, 20 o 30)
+    const allowedCounts = [10, 20, 30];
+    const parsedCount = Number(rawCount);
+    const questionCount = allowedCounts.includes(parsedCount) ? parsedCount : (parsedCount === 5 ? 5 : 10);
     const hasImages = Array.isArray(images) && images.length > 0;
 
     // ==========================================
@@ -313,6 +318,11 @@ Formula domande originali, variegate e stimolanti. Non limitarti alle domande pi
 Sei un esperto docente per la scuola secondaria di primo grado italiana, specificamente per la classe **3ª Media (Terza Media, 13-14 anni, anno dell'esame conclusivo di Stato)**.
 Il tuo compito è creare un test didattico formativo di ${questionCount} domande a risposta multipla per la materia: **${subjectMeta.name}** (${subjectMeta.category}).
 
+REGOLA IMPERATIVA E NON NEGOZIABILE SUL NUMERO DI DOMANDE (${questionCount}):
+- DEVI GENERARE TASSATIVAMENTE ED ESATTAMENTE ${questionCount} DOMANDE NELL'ARRAY "questions".
+- L'utente ha selezionato ${questionCount} domande tramite i pulsanti ufficiali dell'interfaccia.
+- SE NEL TESTO DELL'ARGOMENTO L'UTENTE HA INDICATO O RICHIESTO UN ALTRO NUMERO DI DOMANDE (ad es. "fammi 5 domande", "15 domande", ecc.), DEVI IGNORARE TOTALMENTE QUEL NUMERO: IL NUMERO UFFICIALE ED INDISCUTIBILE È ESCLUSIVAMENTE ${questionCount}. L'argomento dell'utente serve solo a identificare i temi didattici da trattare, non il numero di domande.
+
 LIVELLO SCOLASTICO OBBLIGATORIO (3ª MEDIA):
 Lo studente frequenta la **3ª Media in Italia**. Formula quesiti, esercizi e problemi esattamente calibrati sul programma ministeriale di 3ª Media:
 - Matematica e Geometria: calcolo letterale, monomi, polinomi, equazioni di primo grado, piano cartesiano e rette, Teorema di Pitagora, aree e perimetri di poligoni complessi, elementi di geometria solida (prismi, piramidi, cilindri).
@@ -361,9 +371,9 @@ Formato JSON atteso:
     if (hasImages) {
       userPromptText = `Ecco le foto delle pagine del libro/quaderno su cui basare il test di verifica per ${subjectMeta.name}.
 ${promptTopic ? `Argomento di riferimento specificato: "${promptTopic}".` : 'Identifica l\'argomento dalle pagine.'}
-Genera ${questionCount} domande a scelta multipla COMPLETAMENTE NUOVE E MAI RIPETUTE basate su queste pagine. Rispondi solo in formato JSON.`;
+Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${questionCount} è fissato e vincolante) basate su queste pagine. Rispondi solo in formato JSON.`;
     } else {
-      userPromptText = `Genera un test di verifica di ${questionCount} domande COMPLETAMENTE NUOVE E MAI RIPETUTE per ${subjectMeta.name} ${promptTopic ? `sull'argomento: "${promptTopic}"` : 'sul programma generale delle medie'}. Rispondi solo in formato JSON.`;
+      userPromptText = `Genera un test di verifica di ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${questionCount} è fissato e vincolante) per ${subjectMeta.name} ${promptTopic ? `sull'argomento: "${promptTopic}"` : 'sul programma generale delle medie'}. Rispondi solo in formato JSON.`;
     }
 
     const userContent: Array<
@@ -402,8 +412,15 @@ Genera ${questionCount} domande a scelta multipla COMPLETAMENTE NUOVE E MAI RIPE
     }
 
     const randomizedQuestions = shuffleQuizOptions(parsed.questions);
+    // Se l'AI ha generato più domande del previsto, tronca al numero esatto selezionato
+    const finalQuestions = randomizedQuestions.length > questionCount
+      ? randomizedQuestions.slice(0, questionCount)
+      : randomizedQuestions;
 
-    return new Response(JSON.stringify({ ...parsed, questions: randomizedQuestions }), {
+    return new Response(JSON.stringify({
+      topic: promptTopic || parsed.topic || (hasImages ? `Verifica da ${images.length} foto libro` : subjectMeta.name),
+      questions: finalQuestions,
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

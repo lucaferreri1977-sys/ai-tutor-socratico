@@ -5,6 +5,7 @@ import { SubjectId, SUBJECTS, StudentId, QuizQuestion, QuizAnswer, QuizTestRecor
 import { X, CheckCircle2, XCircle, Award, Sparkles, ArrowRight, RotateCcw, Loader2, ImagePlus, Trash2, Lightbulb, Trophy, Target } from 'lucide-react';
 import { fireCelebrationConfetti } from '@/lib/confetti';
 import { compressImage } from '@/lib/image-utils';
+import { cleanTopicInput } from '@/lib/topic-utils';
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -156,7 +157,7 @@ export function QuizModal({
         body: JSON.stringify({
           subject,
           studentId,
-          topic: topicInput.trim() || undefined,
+          topic: cleanTopicInput(topicInput) || undefined,
           images: images.length > 0 ? images.map((img) => img.dataUrl) : undefined,
           questionCount,
           excludeQuestions: sessionSeenQuestions.length > 0 ? sessionSeenQuestions : undefined,
@@ -239,7 +240,7 @@ export function QuizModal({
       else if (grade >= 6) feedback = 'Sufficiente: buone basi, ma ripassiamo insieme i punti dove hai sbagliato.';
       else feedback = 'C\'è ancora da lavorare: torna nella stanza di studio e fai domande a Socrate per chiarire i dubbi!';
 
-      const effectiveTopic = topicInput.trim()
+      const effectiveTopic = cleanTopicInput(topicInput)
         || (images.length > 0 ? `Verifica da ${images.length} foto libro` : `Programma generale di ${subjectMeta.name}`);
 
       const record: QuizTestRecord = {
@@ -321,7 +322,7 @@ export function QuizModal({
         body: JSON.stringify({
           subject,
           studentId,
-          topic: topicInput.trim() || undefined,
+          topic: cleanTopicInput(topicInput) || undefined,
           mode: 'reinforcement',
           missedQuestions: missedList,
         }),
@@ -517,6 +518,9 @@ export function QuizModal({
                   }`}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
                 />
+                <p className="text-[11px] text-slate-400">
+                  💡 Il numero di domande ({questionCount}) è fissato dai pulsanti in alto. Qui indica solo l&apos;argomento didattico (es. Teorema di Pitagora).
+                </p>
               </div>
 
               {/* Sezione Caricamento Foto del Libro / Appunti */}
