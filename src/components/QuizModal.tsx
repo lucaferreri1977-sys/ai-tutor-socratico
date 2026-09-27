@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { SubjectId, SUBJECTS, StudentId, QuizQuestion, QuizAnswer, QuizTestRecord } from '@/lib/types';
-import { X, CheckCircle2, XCircle, Award, Sparkles, ArrowRight, RotateCcw, Loader2, ImagePlus, Trash2, Lightbulb } from 'lucide-react';
+import { SubjectId, SUBJECTS, StudentId, QuizQuestion, QuizAnswer, QuizTestRecord, ReinforcementRecapPoint } from '@/lib/types';
+import { X, CheckCircle2, XCircle, Award, Sparkles, ArrowRight, RotateCcw, Loader2, ImagePlus, Trash2, Lightbulb, Trophy, Target } from 'lucide-react';
 import { fireCelebrationConfetti } from '@/lib/confetti';
 import { compressImage } from '@/lib/image-utils';
 
@@ -52,6 +52,20 @@ export function QuizModal({
   const [showHint, setShowHint] = useState(false);
   const [usedHintQuestions, setUsedHintQuestions] = useState<Record<number, boolean>>({});
 
+  // Reinforcement (Mastery Mode) state
+  const [reinforcementStage, setReinforcementStage] = useState<'idle' | 'recap' | 'testing' | 'success' | 'partial'>('idle');
+  const [reinforcementRecap, setReinforcementRecap] = useState<ReinforcementRecapPoint[]>([]);
+  const [reinforcementQuestions, setReinforcementQuestions] = useState<QuizQuestion[]>([]);
+  const [reinforcementCurrentIndex, setReinforcementCurrentIndex] = useState(0);
+  const [reinforcementSelectedOption, setReinforcementSelectedOption] = useState<number | null>(null);
+  const [reinforcementIsConfirmed, setReinforcementIsConfirmed] = useState(false);
+  const [reinforcementAnswers, setReinforcementAnswers] = useState<QuizAnswer[]>([]);
+  const [reinforcementShowHint, setReinforcementShowHint] = useState(false);
+  const [reinforcementUsedHintMap, setReinforcementUsedHintMap] = useState<Record<number, boolean>>({});
+  const [reinforcementAttempt, setReinforcementAttempt] = useState(1);
+  const [isReinforcementLoading, setIsReinforcementLoading] = useState(false);
+  const [savedQuizRecord, setSavedQuizRecord] = useState<QuizTestRecord | null>(null);
+
   const handleReset = () => {
     setQuestions([]);
     setCurrentQuestionIndex(0);
@@ -65,6 +79,19 @@ export function QuizModal({
     setError(null);
     setShowHint(false);
     setUsedHintQuestions({});
+    // Reset reinforcement
+    setReinforcementStage('idle');
+    setReinforcementRecap([]);
+    setReinforcementQuestions([]);
+    setReinforcementCurrentIndex(0);
+    setReinforcementSelectedOption(null);
+    setReinforcementIsConfirmed(false);
+    setReinforcementAnswers([]);
+    setReinforcementShowHint(false);
+    setReinforcementUsedHintMap({});
+    setReinforcementAttempt(1);
+    setIsReinforcementLoading(false);
+    setSavedQuizRecord(null);
   };
 
   const handleClose = () => {
@@ -231,6 +258,8 @@ export function QuizModal({
         completedAt: new Date().toISOString(),
       };
 
+      setSavedQuizRecord(record);
+
       // Notify parent state for instant real-time history update
       if (onQuizCompleted) {
         onQuizCompleted(record);
@@ -251,22 +280,178 @@ export function QuizModal({
     }
   };
 
+  const handleStartReinforcement = async (isRetry = false) => {
+    const missedList = isRetry
+      ? reinforcementAnswers
+          .filter((a) => !a.isCorrect)
+          .map((a) => {
+            const origQ = reinforcementQuestions[a.questionIndex];
+            return {
+              questionText: a.questionText,
+              selectedOptionText: origQ && a.selectedOption !== null && origQ.options[a.selectedOption] ? origQ.options[a.selectedOption] : undefined,
+              correctOptionText: origQ && a.correctOption !== null && origQ.options[a.correctOption] ? origQ.options[a.correctOption] : undefined,
+              explanation: a.explanation,
+            };
+          })
+      : userAnswers
+          .filter((a) => !a.isCorrect)
+          .map((a) => {
+            const origQ = questions[a.questionIndex];
+            return {
+              questionText: a.questionText,
+              selectedOptionText: origQ && a.selectedOption !== null && origQ.options[a.selectedOption] ? origQ.options[a.selectedOption] : undefined,
+              correctOptionText: origQ && a.correctOption !== null && origQ.options[a.correctOption] ? origQ.options[a.correctOption] : undefined,
+              explanation: a.explanation,
+            };
+          });
+
+    if (missedList.length === 0) return;
+
+    setIsReinforcementLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/quiz/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-auth': authToken,
+          'x-family-pin': authToken,
+        },
+        body: JSON.stringify({
+          subject,
+          studentId,
+          topic: topicInput.trim() || undefined,
+          mode: 'reinforcement',
+          missedQuestions: missedList,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.questions || data.questions.length === 0) {
+        throw new Error(data.error || 'Impossibile generare la scheda di ripasso');
+      }
+
+      setReinforcementRecap(data.recapPoints || []);
+      setReinforcementQuestions(data.questions);
+      setReinforcementStage('recap');
+      setReinforcementAttempt((prev) => (isRetry ? prev + 1 : 1));
+    } catch (err: unknown) {
+      console.error('Error starting reinforcement:', err);
+      setError(err instanceof Error ? err.message : 'Errore nella generazione del ripasso');
+    } finally {
+      setIsReinforcementLoading(false);
+    }
+  };
+
+  const handleLaunchReinforcementTest = () => {
+    setReinforcementStage('testing');
+    setReinforcementCurrentIndex(0);
+    setReinforcementSelectedOption(null);
+    setReinforcementIsConfirmed(false);
+    setReinforcementAnswers([]);
+    setReinforcementShowHint(false);
+    setReinforcementUsedHintMap({});
+  };
+
+  const handleConfirmReinforcementAnswer = () => {
+    if (reinforcementSelectedOption === null) return;
+    const currentQ = reinforcementQuestions[reinforcementCurrentIndex];
+    const isCorrect = reinforcementSelectedOption === currentQ.correctOptionIndex;
+
+    const answerRecord: QuizAnswer = {
+      questionIndex: reinforcementCurrentIndex,
+      questionText: currentQ.question,
+      selectedOption: reinforcementSelectedOption,
+      correctOption: currentQ.correctOptionIndex,
+      isCorrect,
+      explanation: currentQ.explanation,
+      usedHint: !!reinforcementUsedHintMap[reinforcementCurrentIndex],
+    };
+
+    const nextAnswers = [...reinforcementAnswers, answerRecord];
+    setReinforcementAnswers(nextAnswers);
+    setReinforcementIsConfirmed(true);
+  };
+
+  const handleNextReinforcementQuestion = () => {
+    if (reinforcementCurrentIndex < reinforcementQuestions.length - 1) {
+      setReinforcementCurrentIndex((prev) => prev + 1);
+      setReinforcementSelectedOption(null);
+      setReinforcementIsConfirmed(false);
+      setReinforcementShowHint(false);
+    } else {
+      // Completed all reinforcement questions
+      const allCorrect = reinforcementAnswers.every((a) => a.isCorrect);
+      if (allCorrect) {
+        fireCelebrationConfetti();
+        setReinforcementStage('success');
+        if (savedQuizRecord) {
+          const updatedRecord: QuizTestRecord = {
+            ...savedQuizRecord,
+            masteryCompleted: true,
+            reinforcementScore: {
+              recoveredCount: reinforcementAnswers.length,
+              totalToRecover: reinforcementQuestions.length,
+              completedAt: new Date().toISOString(),
+            },
+          };
+          setSavedQuizRecord(updatedRecord);
+          if (onQuizCompleted) onQuizCompleted(updatedRecord);
+
+          fetch('/api/quiz', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-auth': authToken,
+              'x-family-pin': authToken,
+            },
+            body: JSON.stringify({
+              id: savedQuizRecord.id,
+              masteryCompleted: true,
+              reinforcementScore: updatedRecord.reinforcementScore,
+            }),
+          }).catch((e) => console.error('Error updating mastery in cloud:', e));
+        }
+      } else {
+        setReinforcementStage('partial');
+      }
+    }
+  };
+
   const currentQ = questions[currentQuestionIndex];
   const progressPercent = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
+  const currentReinforcementQ = reinforcementQuestions[reinforcementCurrentIndex];
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header - Pulito, senza badge o titoli ridondanti */}
+        {/* Header - Dinamico in base alla fase di verifica o ripasso */}
         <div className="px-5 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
           <div className="flex items-center gap-2.5">
             <span className="text-2xl select-none">{subjectMeta.emoji}</span>
             <div>
               <h2 className="font-bold text-base text-slate-900 dark:text-slate-100">
-                Verifica di {subjectMeta.name}
+                {reinforcementStage === 'idle'
+                  ? `Verifica di ${subjectMeta.name}`
+                  : reinforcementStage === 'recap'
+                  ? `Scheda di Ripasso: ${subjectMeta.name}`
+                  : reinforcementStage === 'testing'
+                  ? `Mini-Test di Rivincita: ${subjectMeta.name}`
+                  : reinforcementStage === 'success'
+                  ? `Obiettivo Raggiunto: 100% Padronanza!`
+                  : `Verifica dei Progressi: ${subjectMeta.name}`}
               </h2>
               <p className="text-xs text-slate-500">
-                {questionCount} domande a risposta multipla con voto in decimi per {studentName}
+                {reinforcementStage === 'idle'
+                  ? `${questionCount} domande a risposta multipla con voto in decimi per ${studentName}`
+                  : reinforcementStage === 'recap'
+                  ? `Micro-ripasso concettuale per ${studentName} prima del mini-test di rivincita`
+                  : reinforcementStage === 'testing'
+                  ? `Domanda ${reinforcementCurrentIndex + 1} di ${reinforcementQuestions.length} per superare gli errori`
+                  : reinforcementStage === 'success'
+                  ? `Tutte le lacune sono state colmate con successo!`
+                  : `Hai fatto progressi, verifichiamo gli ultimi dettagli`}
               </p>
             </div>
           </div>
@@ -282,7 +467,7 @@ export function QuizModal({
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
           {/* STEP 1: Quiz setup screen (Argomento + Numero Domande + Caricamento Foto Libro) */}
-          {questions.length === 0 && !loading && (
+          {reinforcementStage === 'idle' && questions.length === 0 && !loading && !isReinforcementLoading && (
             <div className="space-y-4">
               {/* Selezione Numero Domande */}
               <div className="space-y-1.5">
@@ -444,7 +629,7 @@ export function QuizModal({
           )}
 
           {/* LOADING STATE */}
-          {loading && (
+          {reinforcementStage === 'idle' && loading && (
             <div className="text-center py-12 space-y-4">
               <Loader2 className="w-10 h-10 text-sky-600 animate-spin mx-auto" />
               <div className="space-y-1">
@@ -463,7 +648,7 @@ export function QuizModal({
           )}
 
           {/* STEP 2: ACTIVE QUESTION SCREEN */}
-          {questions.length > 0 && !quizFinished && currentQ && (
+          {reinforcementStage === 'idle' && questions.length > 0 && !quizFinished && currentQ && (
             <div className="space-y-5 animate-in fade-in duration-200">
               {/* Progress bar */}
               <div className="space-y-1.5">
@@ -610,7 +795,7 @@ export function QuizModal({
           )}
 
           {/* STEP 3: FINAL SCORE & EVALUATION SCREEN */}
-          {quizFinished && finalGrade !== null && (
+          {reinforcementStage === 'idle' && quizFinished && finalGrade !== null && (
             <div className="space-y-6 text-center animate-in zoom-in-95 duration-200 py-2">
               <div className="space-y-1">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-amber-600 text-white mx-auto flex items-center justify-center text-2xl shadow-lg shadow-amber-500/25">
@@ -683,14 +868,447 @@ export function QuizModal({
               </div>
 
               {/* Action buttons */}
+              <div className="pt-2 space-y-2.5">
+                {userAnswers.some((a) => !a.isCorrect) && !savedQuizRecord?.masteryCompleted && (
+                  <button
+                    type="button"
+                    disabled={isReinforcementLoading}
+                    onClick={() => handleStartReinforcement(false)}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-indigo-600 hover:from-amber-600 hover:via-orange-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 group"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-200 group-hover:scale-110 transition-transform" />
+                    <span>
+                      Ripassa gli errori e punta al 10/10 ({userAnswers.filter((a) => !a.isCorrect).length}{' '}
+                      {userAnswers.filter((a) => !a.isCorrect).length === 1 ? 'lacuna' : 'lacune'})
+                    </span>
+                  </button>
+                )}
+
+                {savedQuizRecord?.masteryCompleted && (
+                  <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center justify-center gap-2">
+                    <Trophy className="w-4 h-4 text-emerald-600" />
+                    <span>Hai già completato il ripasso con padronanza al 100%!</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="w-full py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Avvia un&apos;altra verifica</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* REINFORCEMENT LOADING STATE */}
+          {isReinforcementLoading && (
+            <div className="text-center py-12 space-y-4">
+              <Loader2 className="w-10 h-10 text-amber-500 animate-spin mx-auto" />
+              <div className="space-y-1">
+                <p className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                  Socrate sta preparando la scheda di ripasso mirata...
+                </p>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Analisi delle risposte errate, estrazione dei concetti chiave e composizione di nuove domande su misura.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* REINFORCEMENT VIEW 1: SCHEDA DI RIPASSO MIRATO */}
+          {reinforcementStage === 'recap' && !isReinforcementLoading && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs flex-shrink-0 mt-0.5">
+                  <Lightbulb className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                    Scheda di Ripasso di Socrate
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Nessun problema per gli errori! Sbagliare è il modo migliore per imparare. Leggi con calma i concetti e le regole qui sotto prima di fare il mini-test di rivincita.
+                  </p>
+                </div>
+              </div>
+
+              {/* Cards dei punti da ripassare */}
+              <div className="space-y-3">
+                {reinforcementRecap.map((point, idx) => (
+                  <div
+                    key={idx}
+                    className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200/90 dark:border-amber-900/50 shadow-2xs space-y-2.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                        {idx + 1}
+                      </span>
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                        {point.concept}
+                      </h4>
+                    </div>
+
+                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {point.summary}
+                    </p>
+
+                    {point.tip && (
+                      <div className="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 text-amber-950 dark:text-amber-100 text-xs flex items-start gap-2">
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                          <span className="font-semibold text-amber-800 dark:text-amber-300">
+                            Il trucco di Socrate:
+                          </span>{' '}
+                          <span className="opacity-95">{point.tip}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="pt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={handleLaunchReinforcementTest}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-700 hover:to-sky-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Target className="w-4 h-4" />
+                  <span>
+                    Inizia il Mini-Test di Rivincita ({reinforcementQuestions.length}{' '}
+                    {reinforcementQuestions.length === 1 ? 'domanda' : 'domande'})
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReinforcementStage('idle')}
+                  className="w-full py-2.5 px-4 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-semibold text-xs transition-colors cursor-pointer text-center"
+                >
+                  Torna alla schermata del punteggio
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* REINFORCEMENT VIEW 2: ACTIVE REINFORCEMENT QUESTION SCREEN */}
+          {reinforcementStage === 'testing' && !isReinforcementLoading && currentReinforcementQ && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              {/* Progress bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                  <span className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+                    <Target className="w-3.5 h-3.5" />
+                    <span>Mini-Test di Rivincita &bull; Domanda {reinforcementCurrentIndex + 1} di {reinforcementQuestions.length}</span>
+                  </span>
+                  <span>{Math.round(((reinforcementCurrentIndex + 1) / reinforcementQuestions.length) * 100)}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-300"
+                    style={{ width: `${((reinforcementCurrentIndex + 1) / reinforcementQuestions.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Question card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug">
+                  {currentReinforcementQ.question}
+                </h3>
+
+                {/* Suggerimento maieutico */}
+                {!reinforcementIsConfirmed && (
+                  <div className="pt-0.5">
+                    {!reinforcementShowHint ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReinforcementShowHint(true);
+                          setReinforcementUsedHintMap((prev) => ({ ...prev, [reinforcementCurrentIndex]: true }));
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200/80 dark:border-amber-800/60 transition-all cursor-pointer shadow-2xs group"
+                      >
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-500 group-hover:scale-110 transition-transform" />
+                        <span>Suggerimento</span>
+                      </button>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-950 dark:text-amber-100 text-xs animate-in fade-in duration-200 space-y-1">
+                        <div className="font-bold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                          <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          <span>Suggerimento di Socrate:</span>
+                        </div>
+                        <p className="leading-relaxed opacity-95">
+                          {currentReinforcementQ.hint || 'Rivedi i concetti della scheda di ripasso e applicali passo dopo passo.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Options */}
+              <div className="space-y-2.5">
+                {currentReinforcementQ.options.map((option, idx) => {
+                  const isSelected = reinforcementSelectedOption === idx;
+                  const isCorrect = idx === currentReinforcementQ.correctOptionIndex;
+                  let optionStyle = 'border-slate-200/80 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-700 bg-white dark:bg-slate-900';
+
+                  if (reinforcementIsConfirmed) {
+                    if (isCorrect) {
+                      optionStyle = 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200';
+                    } else if (isSelected && !isCorrect) {
+                      optionStyle = 'border-rose-500 bg-rose-50/80 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200';
+                    } else {
+                      optionStyle = 'opacity-40 border-slate-200 dark:border-slate-800';
+                    }
+                  } else if (isSelected) {
+                    optionStyle = 'border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/20';
+                  }
+
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      disabled={reinforcementIsConfirmed}
+                      onClick={() => setReinforcementSelectedOption(idx)}
+                      className={`w-full p-3.5 rounded-2xl border text-left text-xs sm:text-sm font-medium transition-all flex items-center justify-between gap-3 cursor-pointer ${optionStyle}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                          {String.fromCharCode(65 + idx)}
+                        </span>
+                        <span>{option}</span>
+                      </div>
+
+                      {reinforcementIsConfirmed && isCorrect && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      )}
+                      {reinforcementIsConfirmed && isSelected && !isCorrect && (
+                        <XCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Explanation after confirmation */}
+              {reinforcementIsConfirmed && (
+                <div
+                  className={`p-4 rounded-2xl border text-xs sm:text-sm animate-in fade-in duration-200 space-y-1.5 ${
+                    reinforcementSelectedOption === currentReinforcementQ.correctOptionIndex
+                      ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                      : 'bg-rose-50/70 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1.5">
+                    {reinforcementSelectedOption === currentReinforcementQ.correctOptionIndex ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Risposta esatta! Hai fatto tuo questo concetto!</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-4 h-4 text-rose-600" />
+                        <span>Socrate spiega:</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-xs leading-relaxed opacity-90">{currentReinforcementQ.explanation}</p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
               <div className="pt-2">
+                {!reinforcementIsConfirmed ? (
+                  <button
+                    type="button"
+                    disabled={reinforcementSelectedOption === null}
+                    onClick={handleConfirmReinforcementAnswer}
+                    className="w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white font-bold text-xs sm:text-sm transition-colors cursor-pointer"
+                  >
+                    Conferma Risposta
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleNextReinforcementQuestion}
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md shadow-emerald-500/20"
+                  >
+                    <span>
+                      {reinforcementCurrentIndex < reinforcementQuestions.length - 1
+                        ? 'Prossima Domanda'
+                        : 'Vedi Risultato del Ripasso'}
+                    </span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* REINFORCEMENT VIEW 3: 100% MASTERY SUCCESS CELEBRATION */}
+          {reinforcementStage === 'success' && !isReinforcementLoading && (
+            <div className="space-y-6 text-center animate-in zoom-in-95 duration-200 py-2">
+              <div className="space-y-2">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-amber-400 via-amber-500 to-emerald-500 text-white mx-auto flex items-center justify-center text-3xl shadow-xl shadow-amber-500/25">
+                  <Trophy className="w-8 h-8" />
+                </div>
+                <h3 className="font-extrabold text-xl text-slate-900 dark:text-slate-100">
+                  Obiettivo Raggiunto: 100% Padronanza!
+                </h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Grandissimo lavoro {studentName}! Hai risposto correttamente a tutte le domande del ripasso. Le lacune sono state completamente colmate!
+                </p>
+              </div>
+
+              {/* Badge & Achievement Card */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 dark:from-emerald-950/30 dark:via-teal-950/20 dark:to-sky-950/30 border border-emerald-200 dark:border-emerald-800 shadow-xs max-w-sm mx-auto space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold text-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Verifica Recuperata con Successo!</span>
+                </div>
+                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                  10/10 Padronanza
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Tutti i concetti sono ora chiari e salvati nel tuo percorso didattico.
+                </p>
+              </div>
+
+              {/* Summary of answered questions */}
+              <div className="text-left space-y-2 pt-1 max-w-md mx-auto">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Domande di recupero superate:
+                </div>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {reinforcementAnswers.map((ans, i) => (
+                    <div
+                      key={i}
+                      className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs flex items-center justify-between gap-2"
+                    >
+                      <div className="truncate min-w-0 font-medium">
+                        {i + 1}. {ans.questionText}
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-2 space-y-2.5">
                 <button
                   type="button"
                   onClick={handleReset}
                   className="w-full py-3 px-4 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-sky-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span>Avvia un&apos;altra verifica</span>
+                  <span>Avvia una nuova verifica</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="w-full py-2.5 px-4 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-semibold text-xs transition-colors cursor-pointer text-center"
+                >
+                  Concludi e chiudi
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* REINFORCEMENT VIEW 4: PARTIAL REINFORCEMENT RESULTS */}
+          {reinforcementStage === 'partial' && !isReinforcementLoading && (
+            <div className="space-y-5 text-center animate-in zoom-in-95 duration-200 py-2">
+              <div className="space-y-1.5">
+                <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center mx-auto text-2xl">
+                  <Target className="w-7 h-7" />
+                </div>
+                <h3 className="font-extrabold text-lg text-slate-900 dark:text-slate-100">
+                  Stai facendo ottimi progressi!
+                </h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Hai risposto correttamente a {reinforcementAnswers.filter((a) => a.isCorrect).length} su{' '}
+                  {reinforcementQuestions.length} domande di recupero.
+                </p>
+              </div>
+
+              {/* Question list review */}
+              <div className="text-left space-y-2 pt-1 max-w-md mx-auto">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Esito del mini-test:
+                </div>
+                <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                  {reinforcementAnswers.map((ans, i) => (
+                    <div
+                      key={i}
+                      className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 ${
+                        ans.isCorrect
+                          ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                          : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="font-semibold truncate">
+                          {i + 1}. {ans.questionText}
+                        </div>
+                        <p className="text-[11px] opacity-80">{ans.explanation}</p>
+                      </div>
+                      {ans.isCorrect ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action buttons with safety valve */}
+              <div className="pt-2 space-y-2">
+                {reinforcementAttempt < 2 ? (
+                  <button
+                    type="button"
+                    onClick={() => handleStartReinforcement(true)}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-amber-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>
+                      Riprova il ripasso sulle ultime lacune (
+                      {reinforcementAnswers.filter((a) => !a.isCorrect).length}{' '}
+                      {reinforcementAnswers.filter((a) => !a.isCorrect).length === 1 ? 'concetto' : 'concetti'})
+                    </span>
+                  </button>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                    <p className="font-bold text-slate-800 dark:text-slate-200">
+                      💡 Consiglio didattico di Socrate:
+                    </p>
+                    <p>
+                      Hai già affrontato 2 round di ripasso intenso. Fai una breve pausa oppure torna nella stanza di studio e fai domande a Socrate per chiarire i passaggi più complessi!
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Avvia una nuova verifica</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="w-full py-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-medium text-xs transition-colors cursor-pointer text-center"
+                >
+                  Chiudi e torna allo studio
                 </button>
               </div>
             </div>

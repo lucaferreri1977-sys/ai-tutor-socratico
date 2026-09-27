@@ -205,13 +205,18 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                   <span>&bull;</span>
                   <span className="truncate">{viewingQuiz.topic}</span>
                 </div>
-                <div className="mt-1.5 flex items-baseline gap-2">
+                <div className="mt-1.5 flex items-baseline gap-2 flex-wrap">
                   <span className="text-3xl font-black text-sky-600 dark:text-sky-400">
                     {viewingQuiz.grade}/10
                   </span>
                   <span className="text-xs text-slate-500">
                     ({viewingQuiz.score}/{viewingQuiz.maxScore} risposte esatte &bull; {viewingQuiz.percentage}%)
                   </span>
+                  {viewingQuiz.masteryCompleted && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-100/90 dark:bg-amber-950/60 px-2.5 py-1 rounded-full border border-amber-300/80 dark:border-amber-800">
+                      🏆 100% Recuperato col Ripasso
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -651,7 +656,12 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                               </h4>
                             </div>
 
-                            <div className="flex items-center gap-3 flex-shrink-0">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                              {quiz.masteryCompleted && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-300/60 dark:border-amber-800/50">
+                                  🏆 100% Recuperato
+                                </span>
+                              )}
                               <div
                                 className={`px-3 py-1 rounded-xl font-bold text-xs ${
                                   quiz.grade >= 8

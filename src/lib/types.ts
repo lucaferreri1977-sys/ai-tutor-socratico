@@ -90,6 +90,12 @@ export interface QuizAnswer {
   usedHint?: boolean;
 }
 
+export interface ReinforcementRecapPoint {
+  concept: string;
+  summary: string;
+  tip?: string;
+}
+
 export interface QuizTestRecord {
   id: string;
   studentId: StudentId;
@@ -104,6 +110,12 @@ export interface QuizTestRecord {
   answers: QuizAnswer[];
   feedback: string;
   completedAt: string;
+  masteryCompleted?: boolean;
+  reinforcementScore?: {
+    recoveredCount: number;
+    totalToRecover: number;
+    completedAt: string;
+  };
 }
 
 export const SUBJECTS: Record<SubjectId, SubjectMeta> = {

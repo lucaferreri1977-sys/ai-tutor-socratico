@@ -95,6 +95,11 @@ export function TestHistoryModal({
                     <span className="text-xs text-slate-500">
                       ({viewingQuiz.score}/{viewingQuiz.maxScore} risposte esatte &bull; {viewingQuiz.percentage}%)
                     </span>
+                    {viewingQuiz.masteryCompleted && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/90 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-300/80 dark:border-amber-800">
+                        🏆 100% Recuperato col Ripasso
+                      </span>
+                    )}
                   </div>
                 </div>
 

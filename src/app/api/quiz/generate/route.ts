@@ -1,11 +1,62 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
-import { SubjectId, SUBJECTS, QuizQuestion, StudentId, QuizTestRecord } from '@/lib/types';
+import { SubjectId, SUBJECTS, QuizQuestion, StudentId, QuizTestRecord, ReinforcementRecapPoint } from '@/lib/types';
 import { getAuthorizedUser } from '@/lib/auth-check';
 import { getFirestoreDb, TUTOR_QUIZZES_COLLECTION } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+function parseQuizJson<T>(rawText: string): T {
+  let cleaned = rawText.trim();
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '').trim();
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```/, '').replace(/```$/, '').trim();
+  }
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return JSON.parse(cleaned) as T;
+}
+
+function shuffleQuizOptions(questions: QuizQuestion[]): QuizQuestion[] {
+  return questions.map((q, qIdx) => {
+    if (!Array.isArray(q.options) || q.options.length <= 1) {
+      return q;
+    }
+
+    const rawCorrectIndex =
+      typeof q.correctOptionIndex === 'number' &&
+      q.correctOptionIndex >= 0 &&
+      q.correctOptionIndex < q.options.length
+        ? q.correctOptionIndex
+        : 0;
+
+    const items = q.options.map((opt, idx) => ({
+      text: opt,
+      isCorrect: idx === rawCorrectIndex,
+    }));
+
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+
+    const shuffledOptions = items.map((it) => it.text);
+    const newCorrectIndex = items.findIndex((it) => it.isCorrect);
+
+    return {
+      ...q,
+      id: q.id || `q-${qIdx + 1}`,
+      options: shuffledOptions,
+      correctOptionIndex: newCorrectIndex !== -1 ? newCorrectIndex : 0,
+      hint: typeof q.hint === 'string' && q.hint.trim() ? q.hint.trim() : undefined,
+    };
+  });
+}
 
 export async function POST(req: Request) {
   try {
@@ -21,6 +72,8 @@ export async function POST(req: Request) {
       images,
       questionCount: rawCount,
       excludeQuestions: clientExcludeQuestions,
+      mode = 'standard',
+      missedQuestions,
     } = (await req.json()) as {
       subject: SubjectId;
       studentId?: StudentId;
@@ -28,13 +81,19 @@ export async function POST(req: Request) {
       images?: string[];
       questionCount?: number;
       excludeQuestions?: string[];
+      mode?: 'standard' | 'reinforcement';
+      missedQuestions?: Array<{
+        questionText: string;
+        selectedOptionText?: string;
+        correctOptionText?: string;
+        explanation?: string;
+      }>;
     };
 
     if (!subject || !SUBJECTS[subject]) {
       return new Response(JSON.stringify({ error: 'Materia non valida' }), { status: 400 });
     }
 
-    const questionCount = Math.max(5, Math.min(30, Number(rawCount) || 10));
     const subjectMeta = SUBJECTS[subject];
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
 
@@ -44,9 +103,97 @@ export async function POST(req: Request) {
 
     const google = createGoogleGenerativeAI({ apiKey });
     const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-
-    const hasImages = Array.isArray(images) && images.length > 0;
     const promptTopic = topic && topic.trim().length > 0 ? topic.trim() : '';
+    const questionCount = Math.max(5, Math.min(30, Number(rawCount) || 10));
+    const hasImages = Array.isArray(images) && images.length > 0;
+
+    // ==========================================
+    // MODALITÀ REINFORCEMENT (RIPASSO & RECUPERO ERRORI)
+    // ==========================================
+    if (mode === 'reinforcement' && Array.isArray(missedQuestions) && missedQuestions.length > 0) {
+      const reinforcementCount = Math.min(missedQuestions.length, 10);
+
+      const reinforcementSystemPrompt = `
+Sei Socrate, esperto docente e tutor empatico per la scuola secondaria di primo grado (scuola media italiana, 11-14 anni).
+Uno studente ha terminato una verifica di **${subjectMeta.name}** (${subjectMeta.category}) e ha risposto in modo errato a ${missedQuestions.length} quesiti.
+Il tuo compito ora è guidarlo nel **RECUPERO E RINFORZO DEGLI ERRORI (Mastery Learning Socratico)**:
+1. Genera una **Scheda di Ripasso Mirato** ("recapPoints"): per ciascun errore, isola il concetto didattico sottostante, spiega la regola in modo chiarissimo e semplice (max 2 frasi) e fornisci un trucco pratico o consiglio mentale di Socrate per non cadere più in trappola.
+2. Genera un **Mini-Test di Rivincita** ("questions"): esattamente ${reinforcementCount} domande a risposta multipla inedite (una per ciascun concetto errato).
+
+REGOLE TASSATIVE PER LE DOMANDE DEL MINI-TEST:
+1. Genera ESATTAMENTE ${reinforcementCount} domande a risposta multipla (4 opzioni per domanda, 1 corretta e 3 plausibili distrattori didattici).
+2. Ciascuna domanda DEVE riguardare lo stesso concetto/abilità dell'errore corrispondente, MA DEVE ESSERE COMPLETAMENTE DIVERSA DALLA DOMANDA ORIGINALE: cambia totalmente valori numerici, figure, formule, frasi d'esempio o contesti! NON riproporre le stesse domande.
+3. DISTRIBUZIONE CASUALE: Alterna e distribuisci la risposta corretta tra tutte le posizioni (A, B, C, D).
+4. SUGGERIMENTO MAIEUTICO ("hint"): Per ciascuna domanda fornisci un breve indizio di metodo senza svelare la soluzione.
+5. Includi una spiegazione chiara ("explanation") per la risposta corretta.
+6. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown o commenti esterni.
+
+Formato JSON atteso:
+{
+  "topic": "${promptTopic || subjectMeta.name}",
+  "recapPoints": [
+    {
+      "concept": "Nome del concetto chiave (es. Precedenza delle operazioni o Accordo del participio)",
+      "summary": "Spiegazione chiara e semplice della regola per un ragazzo delle medie.",
+      "tip": "Un trucco mnemonico o consiglio pratico di Socrate."
+    }
+  ],
+  "questions": [
+    {
+      "id": "rq1",
+      "question": "Nuova domanda di verifica inedita su questo concetto...",
+      "options": ["Opzione A", "Opzione B", "Opzione C", "Opzione D"],
+      "correctOptionIndex": 1,
+      "hint": "Breve indizio di metodo...",
+      "explanation": "Spiegazione chiara della risposta corretta..."
+    }
+  ]
+}
+`;
+
+      const reinforcementUserText = `Ecco gli errori commessi dallo studente nel test precedente di ${subjectMeta.name} ${promptTopic ? `sull'argomento "${promptTopic}"` : ''}:
+${missedQuestions.map((m, idx) => `
+ERRORE ${idx + 1}:
+- Domanda originale: "${m.questionText}"
+${m.selectedOptionText ? `- Risposta errata selezionata dallo studente: "${m.selectedOptionText}"` : ''}
+${m.correctOptionText ? `- Risposta corretta attesa: "${m.correctOptionText}"` : ''}
+${m.explanation ? `- Spiegazione: "${m.explanation}"` : ''}
+`).join('\n')}
+
+Genera la Scheda di Ripasso ("recapPoints", uno per ciascun errore) e il Mini-Test di Rivincita ("questions", esattamente ${reinforcementCount} nuove domande diverse). Rispondi solo in JSON.`;
+
+      const reinforcementResult = await generateText({
+        model: google(modelName),
+        system: reinforcementSystemPrompt,
+        messages: [{ role: 'user', content: [{ type: 'text', text: reinforcementUserText }] }],
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      });
+
+      const parsedReinforcement = parseQuizJson<{
+        topic?: string;
+        recapPoints?: ReinforcementRecapPoint[];
+        questions: QuizQuestion[];
+      }>(reinforcementResult.text);
+
+      if (!parsedReinforcement.questions || !Array.isArray(parsedReinforcement.questions) || parsedReinforcement.questions.length === 0) {
+        throw new Error('Formato quiz di recupero non valido restituito dall\'AI');
+      }
+
+      const randomizedReinforcementQuestions = shuffleQuizOptions(parsedReinforcement.questions);
+
+      return new Response(
+        JSON.stringify({
+          topic: parsedReinforcement.topic || promptTopic || subjectMeta.name,
+          recapPoints: parsedReinforcement.recapPoints || [],
+          questions: randomizedReinforcementQuestions,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     // Recupera lo storico delle domande già somministrate per non ripeterle
     const pastQuestionsSet = new Set<string>();
@@ -207,66 +354,13 @@ Genera ${questionCount} domande a scelta multipla COMPLETAMENTE NUOVE E MAI RIPE
       maxOutputTokens: 8192,
     });
 
-    let cleaned = result.text.trim();
-    if (cleaned.startsWith('```json')) {
-      cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '').trim();
-    } else if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```/, '').replace(/```$/, '').trim();
-    }
-
-    // Safeguard to extract JSON if surrounded by any additional commentary
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
-    }
-
-    const parsed = JSON.parse(cleaned) as { topic?: string; questions: QuizQuestion[] };
+    const parsed = parseQuizJson<{ topic?: string; questions: QuizQuestion[] }>(result.text);
 
     if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
       throw new Error('Formato quiz non valido restituito dall\'AI');
     }
 
-    // 4. Algoritmo Fisher-Yates per mescolare in modo rigoroso e casuale le 4 opzioni di ogni domanda
-    // Garantisce matematicamente che la risposta corretta sia equamente distribuita tra A, B, C e D (0, 1, 2, 3)
-    const randomizedQuestions = parsed.questions.map((q, qIdx) => {
-      if (!Array.isArray(q.options) || q.options.length <= 1) {
-        return q;
-      }
-
-      const rawCorrectIndex =
-        typeof q.correctOptionIndex === 'number' &&
-        q.correctOptionIndex >= 0 &&
-        q.correctOptionIndex < q.options.length
-          ? q.correctOptionIndex
-          : 0;
-
-      // Memorizza il testo della risposta corretta
-      const correctOptionText = q.options[rawCorrectIndex];
-
-      // Crea coppie con indicatore di correttezza
-      const items = q.options.map((opt, idx) => ({
-        text: opt,
-        isCorrect: idx === rawCorrectIndex,
-      }));
-
-      // Fisher-Yates shuffle
-      for (let i = items.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [items[i], items[j]] = [items[j], items[i]];
-      }
-
-      const shuffledOptions = items.map((it) => it.text);
-      const newCorrectIndex = items.findIndex((it) => it.isCorrect);
-
-      return {
-        ...q,
-        id: q.id || `q-${qIdx + 1}`,
-        options: shuffledOptions,
-        correctOptionIndex: newCorrectIndex !== -1 ? newCorrectIndex : 0,
-        hint: typeof q.hint === 'string' && q.hint.trim() ? q.hint.trim() : undefined,
-      };
-    });
+    const randomizedQuestions = shuffleQuizOptions(parsed.questions);
 
     return new Response(JSON.stringify({ ...parsed, questions: randomizedQuestions }), {
       status: 200,

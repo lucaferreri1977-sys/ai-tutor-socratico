@@ -39,6 +39,8 @@ export async function GET(req: NextRequest) {
           answers: data.answers || [],
           feedback: data.feedback || '',
           completedAt: data.completedAt,
+          masteryCompleted: data.masteryCompleted || false,
+          reinforcementScore: data.reinforcementScore || undefined,
         } as QuizTestRecord;
       })
       .sort((a, b) => {
@@ -70,7 +72,7 @@ export async function POST(req: Request) {
 
     const db = getFirestoreDb();
     const now = new Date().toISOString();
-    const quizId = `quiz-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const quizId = body.id || `quiz-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     const quizRef = db.collection(TUTOR_QUIZZES_COLLECTION).doc(quizId);
 
@@ -87,10 +89,12 @@ export async function POST(req: Request) {
       percentage: percentage || Math.round(((score || 0) / (maxScore || 5)) * 100),
       answers: answers || [],
       feedback: feedback || '',
-      completedAt: now,
+      completedAt: body.completedAt || now,
+      masteryCompleted: !!body.masteryCompleted,
+      reinforcementScore: body.reinforcementScore || null,
     };
 
-    await quizRef.set(quizData);
+    await quizRef.set(quizData, { merge: true });
 
     return new Response(JSON.stringify({ success: true, id: quizId }), {
       status: 200,
@@ -99,6 +103,40 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     console.error('Error saving quiz result:', error);
     const msg = error instanceof Error ? error.message : 'Errore nel salvataggio del quiz';
+    return new Response(JSON.stringify({ error: msg }), { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request) {
+  const user = getAuthorizedUser(req);
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'Non autorizzato' }), { status: 401 });
+  }
+
+  try {
+    const { id, masteryCompleted, reinforcementScore } = await req.json();
+    if (!id) {
+      return new Response(JSON.stringify({ error: 'ID del quiz mancante' }), { status: 400 });
+    }
+
+    const db = getFirestoreDb();
+    const quizRef = db.collection(TUTOR_QUIZZES_COLLECTION).doc(id);
+    await quizRef.set(
+      {
+        masteryCompleted: !!masteryCompleted,
+        reinforcementScore: reinforcementScore || null,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error: unknown) {
+    console.error('Error updating quiz mastery:', error);
+    const msg = error instanceof Error ? error.message : 'Errore nell\'aggiornamento del quiz';
     return new Response(JSON.stringify({ error: msg }), { status: 500 });
   }
 }
