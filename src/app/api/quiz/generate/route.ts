@@ -51,8 +51,9 @@ Se lo studente ha indicato un argomento ("${promptTopic || 'non specificato'}"),
 REGOLE TASSATIVE:
 1. Genera ESATTAMENTE ${questionCount} domande a risposta multipla calibrate per il livello scolastico delle medie.
 2. Ogni domanda deve avere ESATTAMENTE 4 opzioni di risposta (una sola corretta e tre plausibili distrattori didattici).
-3. Includi una spiegazione chiara, incoraggiante e formativa per ciascuna domanda.
-4. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown extra o testo fuori dal JSON.
+3. DISTRIBUZIONE CASUALE: Alterna e distribuisci la risposta corretta in modo casuale ed equilibrato tra tutte le posizioni (A, B, C, D), variando il valore di 'correctOptionIndex' (0, 1, 2 o 3). NON inserire sempre la risposta corretta al primo posto!
+4. Includi una spiegazione chiara, incoraggiante e formativa per ciascuna domanda.
+5. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown extra o testo fuori dal JSON.
 
 Formato JSON atteso:
 {
@@ -61,11 +62,10 @@ Formato JSON atteso:
     {
       "id": "q1",
       "question": "Testo chiaro della prima domanda...",
-      "options": ["Opzione A", "Opzione B", "Opzione C", "Opzione D"],
-      "correctOptionIndex": 0,
+      "options": ["Distrattore A", "Risposta corretta", "Distrattore C", "Distrattore D"],
+      "correctOptionIndex": 1,
       "explanation": "Spiegazione didattica del perché questa è la risposta corretta..."
-    },
-    ... altre ${questionCount - 1} domande
+    }
   ]
 }
 `;
@@ -129,7 +129,47 @@ Genera ${questionCount} domande a scelta multipla basate su queste pagine. Rispo
       throw new Error('Formato quiz non valido restituito dall\'AI');
     }
 
-    return new Response(JSON.stringify(parsed), {
+    // 4. Algoritmo Fisher-Yates per mescolare in modo rigoroso e casuale le 4 opzioni di ogni domanda
+    // Garantisce matematicamente che la risposta corretta sia equamente distribuita tra A, B, C e D (0, 1, 2, 3)
+    const randomizedQuestions = parsed.questions.map((q, qIdx) => {
+      if (!Array.isArray(q.options) || q.options.length <= 1) {
+        return q;
+      }
+
+      const rawCorrectIndex =
+        typeof q.correctOptionIndex === 'number' &&
+        q.correctOptionIndex >= 0 &&
+        q.correctOptionIndex < q.options.length
+          ? q.correctOptionIndex
+          : 0;
+
+      // Memorizza il testo della risposta corretta
+      const correctOptionText = q.options[rawCorrectIndex];
+
+      // Crea coppie con indicatore di correttezza
+      const items = q.options.map((opt, idx) => ({
+        text: opt,
+        isCorrect: idx === rawCorrectIndex,
+      }));
+
+      // Fisher-Yates shuffle
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+
+      const shuffledOptions = items.map((it) => it.text);
+      const newCorrectIndex = items.findIndex((it) => it.isCorrect);
+
+      return {
+        ...q,
+        id: q.id || `q-${qIdx + 1}`,
+        options: shuffledOptions,
+        correctOptionIndex: newCorrectIndex !== -1 ? newCorrectIndex : 0,
+      };
+    });
+
+    return new Response(JSON.stringify({ ...parsed, questions: randomizedQuestions }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
