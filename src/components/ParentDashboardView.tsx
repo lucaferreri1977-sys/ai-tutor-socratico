@@ -324,10 +324,9 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                     <div className="font-bold text-xs mb-1 text-slate-600 dark:text-slate-300">
                       {isAssistant ? '🦉 Socrate (Tutor):' : `👤 ${viewingSession.studentName}:`}
                     </div>
-                    <MathMarkdown content={msg.content} />
-                    {msg.imageUrl && (
+                    {(msg.imageUrl || (msg.imageUrls && msg.imageUrls.length > 0)) && (
                       <div className="mt-2 text-xs text-sky-600 font-semibold">
-                        📷 [Foto del compito caricata dallo studente]
+                        📷 [{(msg.imageUrls?.length || 1) > 1 ? `${msg.imageUrls?.length} foto allegate dallo studente` : 'Foto del compito caricata dallo studente'}]
                       </div>
                     )}
                   </div>

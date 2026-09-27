@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Send, Image as ImageIcon, X } from 'lucide-react';
 
 interface ChatInputProps {
-  onSendMessage: (text: string, imageBase64?: string) => void;
+  onSendMessage: (text: string, images?: string[] | string) => void;
   disabled?: boolean;
   quickPrompts?: string[];
 }
@@ -15,9 +15,10 @@ export function ChatInput({
   quickPrompts = [],
 }: ChatInputProps) {
   const [input, setInput] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const MAX_IMAGES = 6;
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -28,31 +29,46 @@ export function ChatInput({
   }, [input]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // Check size (< 6MB)
-    if (file.size > 6 * 1024 * 1024) {
-      alert('L\'immagine è troppo pesante. Scegli una foto inferiore a 6MB.');
+    if (selectedImages.length + files.length > MAX_IMAGES) {
+      alert(`Puoi allegare al massimo ${MAX_IMAGES} immagini per messaggio.`);
+      e.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setSelectedImage(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-    // Reset file input so same file can be reselected
+    for (const file of files) {
+      // Check size (< 6MB per image)
+      if (file.size > 6 * 1024 * 1024) {
+        alert(`L'immagine "${file.name}" supera 6MB. Scegli una foto più leggera.`);
+        continue;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setSelectedImages((prev) => {
+            if (prev.length >= MAX_IMAGES) return prev;
+            return [...prev, result];
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Reset file input so same files can be reselected if removed
     e.target.value = '';
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if ((!input.trim() && !selectedImage) || disabled) return;
+    if ((!input.trim() && selectedImages.length === 0) || disabled) return;
 
-    onSendMessage(input.trim(), selectedImage || undefined);
+    onSendMessage(input.trim(), selectedImages.length > 0 ? selectedImages : undefined);
     setInput('');
-    setSelectedImage(null);
+    setSelectedImages([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -74,26 +90,51 @@ export function ChatInput({
     >
       <div className="max-w-4xl mx-auto space-y-2">
 
-        {/* Selected image preview */}
-        {selectedImage && (
-          <div className="relative inline-flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-sky-400/40 animate-in fade-in">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={selectedImage}
-              alt="Anteprima foto"
-              className="w-14 h-14 object-cover rounded-lg"
-            />
-            <div className="text-xs text-slate-600 dark:text-slate-300 pr-6">
-              <span className="font-semibold block text-sky-600 dark:text-sky-400">Foto allegata</span>
-              <span>Socrate leggerà il compito da qui</span>
+        {/* Selected images preview list */}
+        {selectedImages.length > 0 && (
+          <div className="p-2 sm:p-2.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-sky-400/40 animate-in fade-in space-y-2">
+            <div className="flex items-center justify-between text-xs px-1">
+              <span className="font-semibold text-sky-700 dark:text-sky-300">
+                📷 {selectedImages.length === 1 ? '1 foto allegata' : `${selectedImages.length} foto allegate`}
+                <span className="text-[11px] font-normal text-slate-400 ml-1.5">(massimo {MAX_IMAGES})</span>
+              </span>
+              {selectedImages.length < MAX_IMAGES && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  + Aggiungi altra foto
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => setSelectedImage(null)}
-              className="absolute top-1.5 right-1.5 p-1 bg-slate-200 dark:bg-slate-700 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950 rounded-full transition-colors cursor-pointer"
-              title="Rimuovi foto"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+
+            <div className="flex items-center gap-2 overflow-x-auto py-1 px-0.5 scrollbar-thin">
+              {selectedImages.map((img, idx) => (
+                <div
+                  key={idx}
+                  className="relative flex-shrink-0 group rounded-xl overflow-hidden border-2 border-sky-400/60 bg-white dark:bg-slate-900 shadow-xs"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img}
+                    alt={`Foto ${idx + 1}`}
+                    className="w-16 h-16 sm:w-18 sm:h-18 object-cover"
+                  />
+                  <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[9px] text-white text-center font-bold py-0.5">
+                    Foto {idx + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImages((prev) => prev.filter((_, i) => i !== idx))}
+                    className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-600 text-white rounded-full transition-colors cursor-pointer"
+                    title={`Rimuovi foto ${idx + 1}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -105,6 +146,7 @@ export function ChatInput({
             ref={fileInputRef}
             onChange={handleImageChange}
             accept="image/*"
+            multiple
             className="hidden"
           />
 
@@ -113,10 +155,15 @@ export function ChatInput({
             type="button"
             disabled={disabled}
             onClick={() => fileInputRef.current?.click()}
-            title="Carica foto del quaderno o del libro"
-            className="w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-sky-950 hover:text-sky-600 dark:hover:text-sky-400 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center cursor-pointer flex-shrink-0 touch-manipulation"
+            title="Carica foto del quaderno o del libro (puoi selezionarne più di una)"
+            className="relative w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-sky-950 hover:text-sky-600 dark:hover:text-sky-400 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center cursor-pointer flex-shrink-0 touch-manipulation"
           >
             <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            {selectedImages.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
+                {selectedImages.length}
+              </span>
+            )}
           </button>
 
           {/* Text input area */}
@@ -129,8 +176,8 @@ export function ChatInput({
               disabled={disabled}
               rows={1}
               placeholder={
-                selectedImage
-                  ? 'Fai una domanda sulla foto o premi Invio...'
+                selectedImages.length > 0
+                  ? `Fai una domanda sulle ${selectedImages.length} foto o premi Invio...`
                   : 'Scrivi qui il tuo dubbio o esercizio...'
               }
               className="w-full bg-transparent px-3 py-2 sm:px-3.5 sm:py-2.5 text-base sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none resize-none leading-normal"
@@ -140,7 +187,7 @@ export function ChatInput({
           {/* Send button */}
           <button
             type="submit"
-            disabled={disabled || (!input.trim() && !selectedImage)}
+            disabled={disabled || (!input.trim() && selectedImages.length === 0)}
             className="w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-40 disabled:hover:bg-sky-600 shadow-md shadow-sky-600/20 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center touch-manipulation"
             title="Invia messaggio"
           >

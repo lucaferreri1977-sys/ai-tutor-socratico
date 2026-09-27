@@ -9,6 +9,7 @@ export interface MessageData {
   role: 'user' | 'assistant';
   content: string;
   imageUrl?: string;
+  imageUrls?: string[];
   timestamp?: string;
 }
 
@@ -19,7 +20,11 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
+
+  const images = (message.imageUrls && message.imageUrls.length > 0)
+    ? message.imageUrls
+    : (message.imageUrl ? [message.imageUrl] : []);
 
   const isAssistant = message.role === 'assistant';
 
@@ -77,23 +82,53 @@ export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) 
             )}
           </div>
 
-          {/* Attached image if any */}
-          {message.imageUrl && (
-            <div className="my-2">
-              <div
-                onClick={() => setIsImageModalOpen(true)}
-                className="relative inline-block group cursor-pointer rounded-xl overflow-hidden border-2 border-sky-400/40 shadow-sm hover:shadow-md transition-all max-w-xs sm:max-w-sm"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={message.imageUrl}
-                  alt="Foto esercizio caricata"
-                  className="max-h-60 w-auto object-cover group-hover:scale-102 transition-transform duration-200"
-                />
-                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-medium transition-opacity gap-1">
-                  <ZoomIn className="w-4 h-4" /> Clicca per ingrandire
+          {/* Attached images if any */}
+          {images.length > 0 && (
+            <div className="my-2.5">
+              {images.length === 1 ? (
+                <div
+                  onClick={() => setZoomedImageUrl(images[0])}
+                  className="relative inline-block group cursor-pointer rounded-2xl overflow-hidden border-2 border-sky-400/40 shadow-sm hover:shadow-md transition-all max-w-xs sm:max-w-sm"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={images[0]}
+                    alt="Foto compito caricata"
+                    className="max-h-60 w-auto object-cover group-hover:scale-102 transition-transform duration-200"
+                  />
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-medium transition-opacity gap-1">
+                    <ZoomIn className="w-4 h-4" /> Clicca per ingrandire
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    {images.length} foto allegate:
+                  </span>
+                  <div className="flex flex-wrap gap-2 sm:gap-2.5">
+                    {images.map((img, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setZoomedImageUrl(img)}
+                        className="relative group cursor-pointer rounded-xl sm:rounded-2xl overflow-hidden border-2 border-sky-400/40 shadow-xs hover:shadow-md transition-all w-20 h-20 sm:w-24 sm:h-24 bg-slate-100 dark:bg-slate-800"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img}
+                          alt={`Foto ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px] sm:text-[10px] font-bold">
+                          Foto {idx + 1}
+                        </span>
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-medium transition-opacity">
+                          <ZoomIn className="w-4 h-4" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -112,21 +147,21 @@ export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) 
       </div>
 
       {/* Modal zoom foto */}
-      {isImageModalOpen && message.imageUrl && (
+      {zoomedImageUrl && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setIsImageModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setZoomedImageUrl(null)}
         >
           <div className="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden p-2 shadow-2xl">
             <button
-              onClick={() => setIsImageModalOpen(false)}
-              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/90 transition-colors"
+              onClick={() => setZoomedImageUrl(null)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/90 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={message.imageUrl}
+              src={zoomedImageUrl}
               alt="Foto compito ingrandita"
               className="max-h-[85vh] w-auto max-w-full object-contain rounded-lg mx-auto"
             />

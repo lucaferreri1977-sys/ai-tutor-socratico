@@ -217,8 +217,12 @@ export default function Home() {
   };
 
   // Send message
-  const handleSendMessage = async (text: string, imageBase64?: string) => {
-    if ((!text.trim() && !imageBase64) || isStreaming || !currentUser || !currentSubject) return;
+  const handleSendMessage = async (text: string, imageOrImages?: string | string[]) => {
+    const images: string[] = Array.isArray(imageOrImages)
+      ? imageOrImages
+      : (imageOrImages ? [imageOrImages] : []);
+
+    if ((!text.trim() && images.length === 0) || isStreaming || !currentUser || !currentSubject) return;
 
     setApiError(null);
 
@@ -231,7 +235,8 @@ export default function Home() {
       id: `user-${Date.now()}`,
       role: 'user',
       content: text,
-      imageUrl: imageBase64,
+      imageUrl: images[0],
+      imageUrls: images,
       timestamp: timeString,
     };
 
@@ -269,6 +274,7 @@ export default function Home() {
             role: m.role,
             content: m.content,
             imageUrl: m.imageUrl,
+            imageUrls: m.imageUrls,
           })),
           subject: currentSubject,
           studentName: activeStudentProfile.name,

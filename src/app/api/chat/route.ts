@@ -12,6 +12,7 @@ interface ClientMessage {
   role: 'user' | 'assistant';
   content: string;
   imageUrl?: string;
+  imageUrls?: string[];
 }
 
 export async function POST(req: Request) {
@@ -57,12 +58,16 @@ export async function POST(req: Request) {
     const effectiveStudentName = studentName || user.name;
     const systemPrompt = buildSocraticSystemPrompt(subject, effectiveStudentName);
 
-    // 3. Conversione messaggi per modello con supporto multimodale foto
+    // 3. Conversione messaggi per modello con supporto multimodale foto singole o multiple
     const modelMessages = messages.map((msg, index) => {
       const isLatestUserMessage =
         index === messages.length - 1 && msg.role === 'user';
 
-      if (isLatestUserMessage && msg.imageUrl) {
+      const images = (msg.imageUrls && msg.imageUrls.length > 0)
+        ? msg.imageUrls
+        : (msg.imageUrl ? [msg.imageUrl] : []);
+
+      if (isLatestUserMessage && images.length > 0) {
         return {
           role: 'user' as const,
           content: [
@@ -70,9 +75,12 @@ export async function POST(req: Request) {
               type: 'text' as const,
               text:
                 msg.content ||
-                'Ho caricato questa foto del mio compito. Aiutami a capire come procedere senza darmi la soluzione diretta.',
+                `Ho caricato ${images.length > 1 ? `${images.length} foto del mio compito o delle pagine del libro` : 'questa foto del mio compito'}. Aiutami a capire come procedere o a schematizzare per studiare.`,
             },
-            { type: 'image' as const, image: msg.imageUrl },
+            ...images.map((img) => ({
+              type: 'image' as const,
+              image: img,
+            })),
           ],
         };
       }
