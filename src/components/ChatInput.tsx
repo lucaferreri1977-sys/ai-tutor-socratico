@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Send, Image as ImageIcon, X, Loader2 } from 'lucide-react';
+import { Send, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
 import { compressImage } from '@/lib/image-utils';
 
 interface ChatInputProps {
@@ -102,25 +102,8 @@ export function ChatInput({
 
         {/* Selected images preview list */}
         {selectedImages.length > 0 && (
-          <div className="p-2 sm:p-2.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-sky-400/40 animate-in fade-in space-y-2">
-            <div className="flex items-center justify-between text-xs px-1">
-              <span className="font-semibold text-sky-700 dark:text-sky-300">
-                📷 {selectedImages.length === 1 ? '1 foto allegata' : `${selectedImages.length} foto allegate`}
-                <span className="text-[11px] font-normal text-slate-400 ml-1.5">(massimo {MAX_IMAGES})</span>
-              </span>
-              {selectedImages.length < MAX_IMAGES && (
-                <button
-                  type="button"
-                  disabled={isCompressing}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:underline cursor-pointer flex items-center gap-1 disabled:opacity-50"
-                >
-                  + Aggiungi altra foto
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 overflow-x-auto py-1 px-0.5 scrollbar-thin">
+          <div className="p-2 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-sky-400/40 animate-in fade-in">
+            <div className="flex items-center gap-2 overflow-x-auto py-0.5 px-0.5 scrollbar-thin">
               {selectedImages.map((img, idx) => (
                 <div
                   key={idx}
@@ -138,10 +121,10 @@ export function ChatInput({
                   <button
                     type="button"
                     onClick={() => setSelectedImages((prev) => prev.filter((_, i) => i !== idx))}
-                    className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-600 text-white rounded-full transition-colors cursor-pointer"
+                    className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs opacity-90 hover:opacity-100 transition-all cursor-pointer"
                     title={`Rimuovi foto ${idx + 1}`}
                   >
-                    <X className="w-3 h-3" />
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               ))}
