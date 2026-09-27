@@ -103,7 +103,7 @@ export function SubjectRoomsSidebar({
             </div>
 
           {/* SECTION 2: ATTIVITÀ (Visibile SOLO quando una materia è selezionata) */}
-          <div className="space-y-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+          <div className="space-y-3 pt-3 border-t border-slate-200/70 dark:border-slate-800/70">
             {!currentSubject || !currentSubjectMeta ? (
               <div className="py-6 px-3 text-center rounded-2xl bg-white/60 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
                 <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto text-lg select-none">
@@ -118,15 +118,15 @@ export function SubjectRoomsSidebar({
               </div>
             ) : (
               <>
-                {/* Tab Switcher */}
-                <div className="flex items-center p-1 bg-slate-200/60 dark:bg-slate-800/80 rounded-xl text-xs font-semibold">
+                {/* Tab Switcher con spaziatura e bordi ariosi */}
+                <div className="flex items-center p-1.5 gap-2 bg-slate-200/70 dark:bg-slate-800/90 rounded-2xl text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => setActiveTab('chats')}
-                    className={`flex-1 py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-2 px-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       activeTab === 'chats'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
+                        ? 'bg-white dark:bg-slate-700/90 text-slate-900 dark:text-slate-100 shadow-xs font-bold'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
                     }`}
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
@@ -139,10 +139,10 @@ export function SubjectRoomsSidebar({
                   <button
                     type="button"
                     onClick={() => setActiveTab('quizzes')}
-                    className={`flex-1 py-1.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-2 px-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       activeTab === 'quizzes'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-2xs'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-300/40 dark:hover:bg-slate-700/40'
+                        ? 'bg-white dark:bg-slate-700/90 text-slate-900 dark:text-slate-100 shadow-xs font-bold'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
                     }`}
                   >
                     <Award className="w-3.5 h-3.5 text-amber-500" />
@@ -155,14 +155,14 @@ export function SubjectRoomsSidebar({
 
                 {/* TAB CONTENT: CHATS */}
                 {activeTab === 'chats' && (
-                  <div className="space-y-1">
+                  <div className="space-y-1.5 pt-1">
                     <button
                       type="button"
                       onClick={() => {
                         onNewSession();
                         if (window.innerWidth < 768) onClose();
                       }}
-                      className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 text-sky-700 dark:text-sky-300 font-semibold text-xs flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80 transition-colors cursor-pointer mb-2"
+                      className="w-full py-2.5 px-3.5 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 text-sky-700 dark:text-sky-300 font-semibold text-xs flex items-center justify-center gap-2 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs transition-colors cursor-pointer mb-2.5"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Nuova chat in {currentSubjectMeta.name.split(' ')[0]}</span>
@@ -201,7 +201,7 @@ export function SubjectRoomsSidebar({
 
                 {/* TAB CONTENT: QUIZZES (STORICO TEST) */}
                 {activeTab === 'quizzes' && (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 pt-1">
                     {/* Pulsante: Avvia verifica nella materia attiva */}
                     <button
                       type="button"
@@ -209,7 +209,7 @@ export function SubjectRoomsSidebar({
                         onOpenQuiz();
                         if (window.innerWidth < 768) onClose();
                       }}
-                      className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 text-sky-700 dark:text-sky-300 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs transition-all cursor-pointer mb-2"
+                      className="w-full py-2.5 px-3.5 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 text-sky-700 dark:text-sky-300 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs transition-all cursor-pointer mb-2.5"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Avvia verifica in {currentSubjectMeta.name.split(' ')[0]}</span>
