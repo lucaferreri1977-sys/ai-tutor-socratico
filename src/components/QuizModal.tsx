@@ -463,18 +463,7 @@ export function QuizModal({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
                   <span>Domanda {currentQuestionIndex + 1} di {questions.length}</span>
-                  <div className="flex items-center gap-3">
-                    <span>{Math.round(progressPercent)}% completato</span>
-                    <button
-                      type="button"
-                      onClick={handleReset}
-                      className="text-[11px] text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-medium transition-colors flex items-center gap-1 cursor-pointer"
-                      title="Annulla questa verifica e creane una nuova"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Nuova verifica</span>
-                    </button>
-                  </div>
+                  <span>{Math.round(progressPercent)}% completato</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
