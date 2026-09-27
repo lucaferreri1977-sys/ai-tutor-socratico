@@ -1,7 +1,8 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
-import { SubjectId, SUBJECTS, QuizQuestion } from '@/lib/types';
+import { SubjectId, SUBJECTS, QuizQuestion, StudentId, QuizTestRecord } from '@/lib/types';
 import { getAuthorizedUser } from '@/lib/auth-check';
+import { getFirestoreDb, TUTOR_QUIZZES_COLLECTION } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -13,11 +14,20 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: 'Non autorizzato' }), { status: 401 });
     }
 
-    const { subject, topic, images, questionCount: rawCount } = (await req.json()) as {
+    const {
+      subject,
+      studentId,
+      topic,
+      images,
+      questionCount: rawCount,
+      excludeQuestions: clientExcludeQuestions,
+    } = (await req.json()) as {
       subject: SubjectId;
+      studentId?: StudentId;
       topic?: string;
       images?: string[];
       questionCount?: number;
+      excludeQuestions?: string[];
     };
 
     if (!subject || !SUBJECTS[subject]) {
@@ -38,6 +48,89 @@ export async function POST(req: Request) {
     const hasImages = Array.isArray(images) && images.length > 0;
     const promptTopic = topic && topic.trim().length > 0 ? topic.trim() : '';
 
+    // Recupera lo storico delle domande già somministrate per non ripeterle
+    const pastQuestionsSet = new Set<string>();
+
+    if (Array.isArray(clientExcludeQuestions)) {
+      clientExcludeQuestions.forEach((q) => {
+        if (typeof q === 'string' && q.trim()) {
+          pastQuestionsSet.add(q.trim());
+        }
+      });
+    }
+
+    if (studentId) {
+      try {
+        const db = getFirestoreDb();
+        const snapshot = await db
+          .collection(TUTOR_QUIZZES_COLLECTION)
+          .where('studentId', '==', studentId)
+          .where('subject', '==', subject)
+          .get();
+
+        const docs = snapshot.docs.map((d) => d.data() as QuizTestRecord);
+        docs.sort((a, b) => {
+          const tA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+          const tB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+          return tB - tA;
+        });
+
+        const targetTopicLower = promptTopic.toLowerCase();
+        for (const quiz of docs) {
+          if (Array.isArray(quiz.answers)) {
+            const quizTopicLower = (quiz.topic || '').toLowerCase();
+            const isRelevant =
+              !targetTopicLower ||
+              quizTopicLower.includes(targetTopicLower) ||
+              targetTopicLower.includes(quizTopicLower) ||
+              docs.length <= 5;
+
+            if (isRelevant) {
+              quiz.answers.forEach((ans) => {
+                if (ans.questionText && ans.questionText.trim()) {
+                  pastQuestionsSet.add(ans.questionText.trim());
+                }
+              });
+            }
+          }
+        }
+
+        // Se l'insieme è ancora limitato, aggiungi domande anche dalle altre verifiche della stessa materia
+        if (pastQuestionsSet.size < 25) {
+          for (const quiz of docs) {
+            if (Array.isArray(quiz.answers)) {
+              quiz.answers.forEach((ans) => {
+                if (ans.questionText && ans.questionText.trim()) {
+                  pastQuestionsSet.add(ans.questionText.trim());
+                }
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Impossibile recuperare storico verifiche per deduplicazione:', err);
+      }
+    }
+
+    const pastQuestionsList = Array.from(pastQuestionsSet).slice(0, 35);
+
+    const deduplicationInstructions =
+      pastQuestionsList.length > 0
+        ? `
+REGOLA CRITICA DI NON-RIPETIZIONE DELLE DOMANDE (MASSIMA PRIORITÀ):
+Lo studente ha già sostenuto verifiche su questo argomento/materia e si ricorda le domande precedenti!
+NON DEVI ASSOLUTAMENTE RIPETERE o RIFORMULARE IN MODO BANALE nessuna delle seguenti domande già svolte:
+${pastQuestionsList.map((q, idx) => `${idx + 1}. "${q}"`).join('\n')}
+
+COME CREARE DOMANDE NUOVE E DIVERSIFICATE:
+- Esplora altri aspetti teorici, definizioni, proprietà, eccezioni o applicazioni pratiche dell'argomento.
+- Se si tratta di quesiti o problemi matematici/scientifici con calcoli: CAMBIA COMPLETAMENTE TUTTI I NUMERI, formule, figure geometriche, valori o grandezze in gioco.
+- Se si tratta di lingue/grammatica/letteratura/storia/geografia: usa frasi di esempio, contesti, eventi, personaggi o termini totalmente diversi.
+- Se ci sono foto del libro o quaderno: individua altri paragrafi, concetti, dettagli o esercizi presenti nelle immagini.`
+        : `
+REGOLA DI VARIETÀ E CREATIVITÀ:
+Formula domande originali, variegate e stimolanti. Non limitarti alle domande più ovvie o scontate: esplora diverse angolazioni dell'argomento e varia i valori numerici e gli esempi.`;
+
     const systemPrompt = `
 Sei un esperto docente per la scuola secondaria di primo grado (scuola media italiana, ragazzi di 11-14 anni).
 Il tuo compito è creare un test didattico formativo di ${questionCount} domande a risposta multipla per la materia: **${subjectMeta.name}** (${subjectMeta.category}).
@@ -48,12 +141,15 @@ DEVI LEGGERE E ANALIZZARE ATTENTAMENTE IL TESTO, LE IMMAGINI, I GRAFICI, LE DEFI
 Le ${questionCount} domande DEVONO essere basate direttamente su quanto spiegato o illustrato in queste pagine fotografate.
 Se lo studente ha indicato un argomento ("${promptTopic || 'non specificato'}"), concentrati su quella sezione delle pagine; altrimenti copri i punti chiave delle pagine fotografate e indica l'argomento dedotto nel campo "topic".` : ''}
 
+${deduplicationInstructions}
+
 REGOLE TASSATIVE:
 1. Genera ESATTAMENTE ${questionCount} domande a risposta multipla calibrate per il livello scolastico delle medie.
 2. Ogni domanda deve avere ESATTAMENTE 4 opzioni di risposta (una sola corretta e tre plausibili distrattori didattici).
 3. DISTRIBUZIONE CASUALE: Alterna e distribuisci la risposta corretta in modo casuale ed equilibrato tra tutte le posizioni (A, B, C, D), variando il valore di 'correctOptionIndex' (0, 1, 2 o 3). NON inserire sempre la risposta corretta al primo posto!
-4. Includi una spiegazione chiara, incoraggiante e formativa per ciascuna domanda.
-5. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown extra o testo fuori dal JSON.
+4. VARIETÀ ASSOLUTA: Nessuna domanda deve essere identica o quasi identica a quelle già viste in precedenza dallo studente né a un'altra domanda dello stesso test.
+5. Includi una spiegazione chiara, incoraggiante e formativa per ciascuna domanda.
+6. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown extra o testo fuori dal JSON.
 
 Formato JSON atteso:
 {
@@ -75,9 +171,9 @@ Formato JSON atteso:
     if (hasImages) {
       userPromptText = `Ecco le foto delle pagine del libro/quaderno su cui basare il test di verifica per ${subjectMeta.name}.
 ${promptTopic ? `Argomento di riferimento specificato: "${promptTopic}".` : 'Identifica l\'argomento dalle pagine.'}
-Genera ${questionCount} domande a scelta multipla basate su queste pagine. Rispondi solo in formato JSON.`;
+Genera ${questionCount} domande a scelta multipla COMPLETAMENTE NUOVE E MAI RIPETUTE basate su queste pagine. Rispondi solo in formato JSON.`;
     } else {
-      userPromptText = `Genera un test di verifica di ${questionCount} domande per ${subjectMeta.name} ${promptTopic ? `sull'argomento: "${promptTopic}"` : 'sul programma generale delle medie'}. Rispondi solo in formato JSON.`;
+      userPromptText = `Genera un test di verifica di ${questionCount} domande COMPLETAMENTE NUOVE E MAI RIPETUTE per ${subjectMeta.name} ${promptTopic ? `sull'argomento: "${promptTopic}"` : 'sul programma generale delle medie'}. Rispondi solo in formato JSON.`;
     }
 
     const userContent: Array<
@@ -105,7 +201,7 @@ Genera ${questionCount} domande a scelta multipla basate su queste pagine. Rispo
           content: userContent,
         },
       ],
-      temperature: 0.25,
+      temperature: 0.75, // Permette creatività, variabilità ed evita risposte identiche e deterministiche
       maxOutputTokens: 8192,
     });
 

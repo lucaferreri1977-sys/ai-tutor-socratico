@@ -48,6 +48,7 @@ export function QuizModal({
   const [userAnswers, setUserAnswers] = useState<QuizAnswer[]>([]);
   const [quizFinished, setQuizFinished] = useState(false);
   const [finalGrade, setFinalGrade] = useState<number | null>(null);
+  const [sessionSeenQuestions, setSessionSeenQuestions] = useState<string[]>([]);
 
   const handleReset = () => {
     setQuestions([]);
@@ -70,6 +71,7 @@ export function QuizModal({
   // Se cambia materia o studente, resetta immediatamente per evitare contaminazioni tra materie
   useEffect(() => {
     handleReset();
+    setSessionSeenQuestions([]);
   }, [subject, studentId]);
 
   if (!isOpen) return null;
@@ -122,9 +124,11 @@ export function QuizModal({
         },
         body: JSON.stringify({
           subject,
+          studentId,
           topic: topicInput.trim() || undefined,
           images: images.length > 0 ? images.map((img) => img.dataUrl) : undefined,
           questionCount,
+          excludeQuestions: sessionSeenQuestions.length > 0 ? sessionSeenQuestions : undefined,
         }),
       });
 
@@ -133,7 +137,11 @@ export function QuizModal({
         throw new Error(data.error || 'Impossibile generare il quiz');
       }
 
-      setQuestions(data.questions);
+      const generatedQuestions = data.questions as QuizQuestion[];
+      setQuestions(generatedQuestions);
+      setSessionSeenQuestions((prev) =>
+        Array.from(new Set([...prev, ...generatedQuestions.map((q) => q.question)]))
+      );
       setCurrentQuestionIndex(0);
       setSelectedOption(null);
       setIsAnswerConfirmed(false);
