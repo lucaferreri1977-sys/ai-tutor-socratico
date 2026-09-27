@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SubjectId, SUBJECTS, StudentId, STUDENTS, QuizTestRecord } from '@/lib/types';
-import { X, Award, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { X, Award, CheckCircle2, XCircle } from 'lucide-react';
 
 interface TestHistoryModalProps {
   isOpen: boolean;
@@ -77,29 +77,9 @@ export function TestHistoryModal({
               <p className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Nessuna verifica trovata da revisionare.
               </p>
-              <button
-                type="button"
-                onClick={onClose}
-                className="mt-2 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-semibold cursor-pointer"
-              >
-                Torna allo studio
-              </button>
             </div>
           ) : (
             <div className="space-y-4 animate-in fade-in duration-150">
-              {/* Pulsante rapido per chiudere e tornare subito allo studio / chat */}
-              <div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-xs active:scale-[0.98] transition-all cursor-pointer touch-manipulation select-none"
-                  aria-label="Torna allo studio"
-                >
-                  <ArrowLeft className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0" />
-                  <span>Torna allo studio in {viewingQuiz.subjectName.split(' ')[0]}</span>
-                </button>
-              </div>
-
               {/* Quiz Summary Banner */}
               <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -168,17 +148,6 @@ export function TestHistoryModal({
                     </p>
                   </div>
                 ))}
-              </div>
-
-              {/* Pulsante di chiusura a fondo pagina */}
-              <div className="pt-4 border-t border-slate-200/60 dark:border-slate-800/60 flex justify-end">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs sm:text-sm shadow-md shadow-sky-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <span>Chiudi revisione e torna allo studio</span>
-                </button>
               </div>
             </div>
           )}
