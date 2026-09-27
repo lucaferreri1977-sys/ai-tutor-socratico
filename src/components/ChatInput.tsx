@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Send, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
+import { Send, ImagePlus, Trash2, Loader2 } from 'lucide-react';
 import { compressImage } from '@/lib/image-utils';
 
 interface ChatInputProps {
@@ -155,7 +155,7 @@ export function ChatInput({
             {isCompressing ? (
               <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-sky-600 dark:text-sky-400" />
             ) : (
-              <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ImagePlus className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
             {!isCompressing && selectedImages.length > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
