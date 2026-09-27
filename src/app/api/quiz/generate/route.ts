@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import { jsonrepair } from 'jsonrepair';
 import { SubjectId, SUBJECTS, QuizQuestion, StudentId, QuizTestRecord, ReinforcementRecapPoint } from '@/lib/types';
 import { getAuthorizedUser } from '@/lib/auth-check';
 import { getFirestoreDb, TUTOR_QUIZZES_COLLECTION } from '@/lib/firebase-admin';
@@ -19,7 +20,33 @@ function parseQuizJson<T>(rawText: string): T {
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
     cleaned = cleaned.substring(firstBrace, lastBrace + 1);
   }
-  return JSON.parse(cleaned) as T;
+
+  // 1. Primo tentativo: JSON.parse nativo
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (initialErr) {
+    console.warn('Initial JSON.parse failed, attempting jsonrepair:', initialErr);
+  }
+
+  // 2. Secondo tentativo: jsonrepair (ripara virgolette, virgole mancanti/extra, parentesi)
+  try {
+    const repaired = jsonrepair(cleaned);
+    return JSON.parse(repaired) as T;
+  } catch (repairErr) {
+    console.warn('jsonrepair failed, attempting regex sanitization:', repairErr);
+  }
+
+  // 3. Terzo tentativo: rimozione backslash non validi di LaTeX (es. \sqrt, \times, \circ) e virgole prima di parentesi chiuse
+  try {
+    const sanitized = cleaned
+      .replace(/\\([^"\\\/bfnrtu])/g, '$1')
+      .replace(/,\s*([\]}])/g, '$1');
+    const repairedSanitized = jsonrepair(sanitized);
+    return JSON.parse(repairedSanitized) as T;
+  } catch (finalErr) {
+    console.error('All JSON parsing attempts failed:', finalErr, 'Raw snippet:', cleaned.slice(0, 500));
+    throw new Error('Socrate ha riscontrato una piccola anomalia nella formattazione del test. Riprova a cliccare su Avvia Verifica!');
+  }
 }
 
 function shuffleQuizOptions(questions: QuizQuestion[]): QuizQuestion[] {
@@ -114,19 +141,23 @@ export async function POST(req: Request) {
       const reinforcementCount = Math.min(missedQuestions.length, 10);
 
       const reinforcementSystemPrompt = `
-Sei Socrate, esperto docente e tutor empatico per la scuola secondaria di primo grado (scuola media italiana, 11-14 anni).
-Uno studente ha terminato una verifica di **${subjectMeta.name}** (${subjectMeta.category}) e ha risposto in modo errato a ${missedQuestions.length} quesiti.
+Sei Socrate, esperto docente e tutor empatico per la scuola secondaria di primo grado italiana, specificamente per la classe **3ª Media (Terza Media, 13-14 anni, anno dell'esame di Stato)**.
+Uno studente di 3ª Media ha terminato una verifica di **${subjectMeta.name}** (${subjectMeta.category}) e ha risposto in modo errato a ${missedQuestions.length} quesiti.
 Il tuo compito ora è guidarlo nel **RECUPERO E RINFORZO DEGLI ERRORI (Mastery Learning Socratico)**:
-1. Genera una **Scheda di Ripasso Mirato** ("recapPoints"): per ciascun errore, isola il concetto didattico sottostante, spiega la regola in modo chiarissimo e semplice (max 2 frasi) e fornisci un trucco pratico o consiglio mentale di Socrate per non cadere più in trappola.
+1. Genera una **Scheda di Ripasso Mirato** ("recapPoints"): per ciascun errore, isola il concetto didattico sottostante, spiega la regola in modo chiarissimo e semplice (max 2 frasi) con livello adeguato a uno studente di 3ª Media, e fornisci un trucco pratico o consiglio mentale di Socrate per non cadere più in trappola.
 2. Genera un **Mini-Test di Rivincita** ("questions"): esattamente ${reinforcementCount} domande a risposta multipla inedite (una per ciascun concetto errato).
 
 REGOLE TASSATIVE PER LE DOMANDE DEL MINI-TEST:
-1. Genera ESATTAMENTE ${reinforcementCount} domande a risposta multipla (4 opzioni per domanda, 1 corretta e 3 plausibili distrattori didattici).
+1. Genera ESATTAMENTE ${reinforcementCount} domande a risposta multipla calibrate sul livello di 3ª Media (4 opzioni per domanda, 1 corretta e 3 plausibili distrattori didattici).
 2. Ciascuna domanda DEVE riguardare lo stesso concetto/abilità dell'errore corrispondente, MA DEVE ESSERE COMPLETAMENTE DIVERSA DALLA DOMANDA ORIGINALE: cambia totalmente valori numerici, figure, formule, frasi d'esempio o contesti! NON riproporre le stesse domande.
 3. DISTRIBUZIONE CASUALE: Alterna e distribuisci la risposta corretta tra tutte le posizioni (A, B, C, D).
 4. SUGGERIMENTO MAIEUTICO ("hint"): Per ciascuna domanda fornisci un breve indizio di metodo senza svelare la soluzione.
 5. Includi una spiegazione chiara ("explanation") per la risposta corretta.
-6. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown o commenti esterni.
+6. REGOLE RIGOROSE PER IL FORMATO JSON:
+   - Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown o commenti esterni.
+   - NON usare MAI virgolette doppie (") all'interno dei testi delle domande, opzioni o spiegazioni: usa sempre apici singoli (') o caporali (« »).
+   - Nelle formule matematiche non usare backslash isolati.
+   - Nessuna virgola finale prima di ] o }.
 
 Formato JSON atteso:
 {
@@ -279,25 +310,35 @@ REGOLA DI VARIETÀ E CREATIVITÀ:
 Formula domande originali, variegate e stimolanti. Non limitarti alle domande più ovvie o scontate: esplora diverse angolazioni dell'argomento e varia i valori numerici e gli esempi.`;
 
     const systemPrompt = `
-Sei un esperto docente per la scuola secondaria di primo grado (scuola media italiana, ragazzi di 11-14 anni).
+Sei un esperto docente per la scuola secondaria di primo grado italiana, specificamente per la classe **3ª Media (Terza Media, 13-14 anni, anno dell'esame conclusivo di Stato)**.
 Il tuo compito è creare un test didattico formativo di ${questionCount} domande a risposta multipla per la materia: **${subjectMeta.name}** (${subjectMeta.category}).
 
+LIVELLO SCOLASTICO OBBLIGATORIO (3ª MEDIA):
+Lo studente frequenta la **3ª Media in Italia**. Formula quesiti, esercizi e problemi esattamente calibrati sul programma ministeriale di 3ª Media:
+- Matematica e Geometria: calcolo letterale, monomi, polinomi, equazioni di primo grado, piano cartesiano e rette, Teorema di Pitagora, aree e perimetri di poligoni complessi, elementi di geometria solida (prismi, piramidi, cilindri).
+- Scienze: genetica e leggi di Mendel, DNA, sistema nervoso ed endocrino, astronomia e sistema solare, tettonica delle placche.
+- Italiano e altre materie: analisi logica del periodo, figure retoriche, Novecento storico, Costituzione e cittadinanza.
+
 ${hasImages ? `ATTENZIONE SPECIFICA SULLE FOTO FORNITE:
-Lo studente ha caricato ${images.length} foto contenenti pagine di libro di testo, schede o appunti di quaderno.
-DEVI LEGGERE E ANALIZZARE ATTENTAMENTE IL TESTO, LE IMMAGINI, I GRAFICI, LE DEFINIZIONI, LE FORMULE E GLI ESERCIZI NELLE IMMAGINI FORNITE.
+Lo studente ha caricato ${images.length} foto contenenti pagine di libro di testo o quaderno di 3ª Media.
+DEVI LEGGERE E ANALIZZARE ATTENTAMENTE IL TESTO, LE IMMAGINI, I GRAFICI (es. grafici cartesiani), LE DEFINIZIONI, LE FORMULE E GLI ESERCIZI NELLE IMMAGINI FORNITE.
 Le ${questionCount} domande DEVONO essere basate direttamente su quanto spiegato o illustrato in queste pagine fotografate.
 Se lo studente ha indicato un argomento ("${promptTopic || 'non specificato'}"), concentrati su quella sezione delle pagine; altrimenti copri i punti chiave delle pagine fotografate e indica l'argomento dedotto nel campo "topic".` : ''}
 
 ${deduplicationInstructions}
 
 REGOLE TASSATIVE:
-1. Genera ESATTAMENTE ${questionCount} domande a risposta multipla calibrate per il livello scolastico delle medie.
+1. Genera ESATTAMENTE ${questionCount} domande a risposta multipla calibrate per il livello scolastico di 3ª Media.
 2. Ogni domanda deve avere ESATTAMENTE 4 opzioni di risposta (una sola corretta e tre plausibili distrattori didattici).
 3. DISTRIBUZIONE CASUALE: Alterna e distribuisci la risposta corretta in modo casuale ed equilibrato tra tutte le posizioni (A, B, C, D), variando il valore di 'correctOptionIndex' (0, 1, 2 o 3). NON inserire sempre la risposta corretta al primo posto!
 4. VARIETÀ ASSOLUTA: Nessuna domanda deve essere identica o quasi identica a quelle già viste in precedenza dallo studente né a un'altra domanda dello stesso test.
 5. SUGGERIMENTO MAIEUTICO ("hint"): Per ciascuna domanda DEVI generare un campo "hint" (suggerimento socratico). Deve essere un breve indizio di metodo, un promemoria di regola o una pista di ragionamento per aiutare lo studente a sbloccarsi da solo, SENZA MAI svelare la risposta esatta né fare riferimenti alle opzioni o alle lettere (A, B, C, D).
 6. Includi una spiegazione chiara, incoraggiante e formativa per ciascuna domanda.
-7. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown extra o testo fuori dal JSON.
+7. REGOLE RIGOROSE PER IL FORMATO JSON (FONDAMENTALE PER EVITARE ERRORI DI PARSING):
+   - Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di testo o commenti all'esterno.
+   - NON usare MAI virgolette doppie (") all'interno del testo delle domande, delle opzioni o delle spiegazioni: usa sempre apici singoli (') oppure apici caporali (« »). Esempio corretto: "Qual è il valore di 'x' nell'equazione?" (NON "Qual è il valore di "x"").
+   - Nelle formule matematiche, NON usare backslash isolati di LaTeX (scrivi "sqrt(25)" anziché "\\sqrt{25}", "x^2" anziché "x^{2}", "18 gradi" o "18°" senza caratteri di escape non standard).
+   - Non inserire virgole finali superflue dopo l'ultimo elemento di array o oggetti.
 
 Formato JSON atteso:
 {

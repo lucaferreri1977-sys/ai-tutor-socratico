@@ -810,24 +810,53 @@ export function QuizModal({
               </div>
 
               {/* Big Grade Card */}
-              <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-800/80 dark:to-slate-800/40 border border-slate-200/80 dark:border-slate-700 shadow-xs max-w-xs mx-auto space-y-1.5">
-                <div className="text-4xl font-black text-sky-600 dark:text-sky-400">
-                  {finalGrade}<span className="text-xl text-slate-400 font-bold">/10</span>
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-800/80 dark:to-slate-800/40 border border-slate-200/80 dark:border-slate-700 shadow-xs max-w-sm mx-auto space-y-3">
+                {/* Valutazione in Decimi */}
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+                    Valutazione Scolastica
+                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-4xl font-black text-sky-600 dark:text-sky-400">
+                      Voto {finalGrade}
+                    </span>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                      su 10
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                    {finalGrade >= 9
+                      ? '🌟 Eccellente!'
+                      : finalGrade >= 8
+                      ? '👏 Ottimo Lavoro!'
+                      : finalGrade >= 7
+                      ? '👍 Buono'
+                      : finalGrade >= 6
+                      ? '👌 Sufficiente'
+                      : '📚 Da ripassare'}
+                  </div>
                 </div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                  {finalGrade >= 9
-                    ? '🌟 Eccellente!'
-                    : finalGrade >= 8
-                    ? '👏 Ottimo Lavoro!'
-                    : finalGrade >= 7
-                    ? '👍 Buono'
-                    : finalGrade >= 6
-                    ? '👌 Sufficiente'
-                    : '📚 Da ripassare'}
+
+                {/* Risposte Esatte vs Totale Domande */}
+                <div className="pt-2.5 border-t border-slate-200/70 dark:border-slate-700/70 flex items-center justify-around text-center">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                      Risposte Esatte
+                    </span>
+                    <span className="text-sm font-black text-slate-800 dark:text-slate-100">
+                      {userAnswers.filter((a) => a.isCorrect).length} su {questions.length} domande
+                    </span>
+                  </div>
+                  <div className="w-px h-7 bg-slate-200 dark:bg-slate-700" />
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                      Precisione
+                    </span>
+                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                      {Math.round((userAnswers.filter((a) => a.isCorrect).length / questions.length) * 100)}%
+                    </span>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-500 pt-0.5">
-                  {userAnswers.filter((a) => a.isCorrect).length} risposte corrette su {questions.length}
-                </p>
               </div>
 
               {/* Question Summary Review */}

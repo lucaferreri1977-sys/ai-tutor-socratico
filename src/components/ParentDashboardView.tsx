@@ -207,10 +207,10 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                 </div>
                 <div className="mt-1.5 flex items-baseline gap-2 flex-wrap">
                   <span className="text-3xl font-black text-sky-600 dark:text-sky-400">
-                    {viewingQuiz.grade}/10
+                    Voto {viewingQuiz.grade}/10
                   </span>
-                  <span className="text-xs text-slate-500">
-                    ({viewingQuiz.score}/{viewingQuiz.maxScore} risposte esatte &bull; {viewingQuiz.percentage}%)
+                  <span className="text-xs text-slate-500 font-medium">
+                    ({viewingQuiz.score} su {viewingQuiz.maxScore} risposte esatte &bull; {viewingQuiz.percentage}%)
                   </span>
                   {viewingQuiz.masteryCompleted && (
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-100/90 dark:bg-amber-950/60 px-2.5 py-1 rounded-full border border-amber-300/80 dark:border-amber-800">
@@ -537,7 +537,7 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                               <span className="text-2xl">🧒</span>
                               <div>
                                 <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Mattia</h3>
-                                <p className="text-[11px] text-slate-400">1ª Media</p>
+                                <p className="text-[11px] text-slate-400">3ª Media</p>
                               </div>
                             </div>
                             <span className="px-2.5 py-1 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 text-xs font-bold">

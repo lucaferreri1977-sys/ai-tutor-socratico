@@ -90,10 +90,10 @@ export function TestHistoryModal({
                   </div>
                   <div className="mt-1 flex items-baseline gap-2 flex-wrap">
                     <span className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400">
-                      {viewingQuiz.grade}/10
+                      Voto {viewingQuiz.grade}/10
                     </span>
-                    <span className="text-xs text-slate-500">
-                      ({viewingQuiz.score}/{viewingQuiz.maxScore} risposte esatte &bull; {viewingQuiz.percentage}%)
+                    <span className="text-xs text-slate-500 font-medium">
+                      ({viewingQuiz.score} su {viewingQuiz.maxScore} risposte esatte &bull; {viewingQuiz.percentage}%)
                     </span>
                     {viewingQuiz.masteryCompleted && (
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/90 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-300/80 dark:border-amber-800">
