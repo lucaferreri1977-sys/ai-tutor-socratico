@@ -58,11 +58,20 @@ export async function POST(req: Request) {
     const effectiveStudentName = studentName || user.name;
     const systemPrompt = buildSocraticSystemPrompt(subject, effectiveStudentName);
 
-    // 3. Conversione messaggi per modello con supporto multimodale foto singole o multiple.
-    // Individua l'ultimo messaggio dell'utente contenente foto per preservare il contesto visivo anche nei turni successivi.
+    // 3. Ottimizzazione consumo Token e Conversione Messaggi:
+    // a) Finestra temporale (Sliding Window): manteniamo max 12 messaggi recenti per evitare crescita quadratica dei token.
+    const MAX_CONTEXT_MESSAGES = 12;
+    const windowedMessages = messages.length > MAX_CONTEXT_MESSAGES
+      ? messages.slice(-MAX_CONTEXT_MESSAGES)
+      : messages;
+
+    // b) Smart Image Detachment: individuiamo l'ultimo messaggio con foto.
+    // Le immagini visive (ad alto consumo di token) vengono trasmesse al modello SOLO se il messaggio con foto
+    // è recente (entro gli ultimi 3 messaggi della finestra). Una volta che Socrate ha risposto e impostato
+    // l'esercizio, il testo della conversazione descrive già il problema e non serve ri-fatturare le immagini ad ogni turno.
     let lastUserMessageWithImagesIndex = -1;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
+    for (let i = windowedMessages.length - 1; i >= 0; i--) {
+      const msg = windowedMessages[i];
       const hasImg = (msg.imageUrls && msg.imageUrls.length > 0) || !!msg.imageUrl;
       if (msg.role === 'user' && hasImg) {
         lastUserMessageWithImagesIndex = i;
@@ -70,14 +79,18 @@ export async function POST(req: Request) {
       }
     }
 
-    const modelMessages = messages.map((msg, index) => {
-      const shouldIncludeImages = index === lastUserMessageWithImagesIndex;
+    const isImageFresh =
+      lastUserMessageWithImagesIndex !== -1 &&
+      (windowedMessages.length - 1 - lastUserMessageWithImagesIndex) <= 3;
 
+    const modelMessages = windowedMessages.map((msg, index) => {
+      const isTargetImageMessage = index === lastUserMessageWithImagesIndex;
       const images = (msg.imageUrls && msg.imageUrls.length > 0)
         ? msg.imageUrls
         : (msg.imageUrl ? [msg.imageUrl] : []);
 
-      if (shouldIncludeImages && images.length > 0) {
+      // Includi i payload pesanti delle immagini solo se è il messaggio target ED è fresco
+      if (isTargetImageMessage && isImageFresh && images.length > 0) {
         return {
           role: 'user' as const,
           content: [
@@ -95,9 +108,14 @@ export async function POST(req: Request) {
         };
       }
 
+      // Se le immagini sono già state elaborate nei turni precedenti, usiamo solo il testo per risparmiare token
+      const defaultText = images.length > 0
+        ? `[Foto del compito esaminata nei turni precedenti]`
+        : '';
+
       return {
         role: msg.role as 'user' | 'assistant',
-        content: msg.content,
+        content: msg.content || defaultText || 'Continuiamo.',
       };
     });
 
