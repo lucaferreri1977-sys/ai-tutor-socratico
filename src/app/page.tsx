@@ -155,6 +155,7 @@ export default function Home() {
     setCurrentSessionId(null);
     setMessages([]);
     setApiError(null);
+    setIsQuizModalOpen(false);
   };
 
   // Reset / New Chat in current room
@@ -482,8 +483,9 @@ export default function Home() {
       </div>
 
       {/* Quiz Modal con supporto foto del libro e senza titoli ridondanti */}
-      {currentSubject && (
+      {isQuizModalOpen && currentSubject && (
         <QuizModal
+          key={`${currentStudent}-${currentSubject}`}
           isOpen={isQuizModalOpen}
           onClose={() => setIsQuizModalOpen(false)}
           subject={currentSubject}
