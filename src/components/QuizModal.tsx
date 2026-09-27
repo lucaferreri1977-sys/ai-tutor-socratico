@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SubjectId, SUBJECTS, StudentId, QuizQuestion, QuizAnswer, QuizTestRecord } from '@/lib/types';
-import { X, CheckCircle2, XCircle, Award, Sparkles, ArrowRight, RotateCcw, Loader2, ImagePlus, Trash2 } from 'lucide-react';
+import { X, CheckCircle2, XCircle, Award, Sparkles, ArrowRight, RotateCcw, Loader2, ImagePlus, Trash2, Lightbulb } from 'lucide-react';
 import { fireCelebrationConfetti } from '@/lib/confetti';
 import { compressImage } from '@/lib/image-utils';
 
@@ -49,6 +49,8 @@ export function QuizModal({
   const [quizFinished, setQuizFinished] = useState(false);
   const [finalGrade, setFinalGrade] = useState<number | null>(null);
   const [sessionSeenQuestions, setSessionSeenQuestions] = useState<string[]>([]);
+  const [showHint, setShowHint] = useState(false);
+  const [usedHintQuestions, setUsedHintQuestions] = useState<Record<number, boolean>>({});
 
   const handleReset = () => {
     setQuestions([]);
@@ -61,6 +63,8 @@ export function QuizModal({
     setImages([]);
     setTopicInput('');
     setError(null);
+    setShowHint(false);
+    setUsedHintQuestions({});
   };
 
   const handleClose = () => {
@@ -168,6 +172,7 @@ export function QuizModal({
       correctOption: currentQ.correctOptionIndex,
       isCorrect,
       explanation: currentQ.explanation,
+      usedHint: !!usedHintQuestions[currentQuestionIndex],
     };
 
     const nextAnswers = [...userAnswers, answerRecord];
@@ -193,6 +198,7 @@ export function QuizModal({
       setCurrentQuestionIndex((prev) => prev + 1);
       setSelectedOption(null);
       setIsAnswerConfirmed(false);
+      setShowHint(false);
     } else {
       setQuizFinished(true);
     }
@@ -474,10 +480,39 @@ export function QuizModal({
               </div>
 
               {/* Question card */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
                 <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug">
                   {currentQ.question}
                 </h3>
+
+                {/* Pulsante o Box Suggerimento Maieutico */}
+                {!isAnswerConfirmed && (
+                  <div className="pt-0.5">
+                    {!showHint ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowHint(true);
+                          setUsedHintQuestions((prev) => ({ ...prev, [currentQuestionIndex]: true }));
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200/80 dark:border-amber-800/60 transition-all cursor-pointer shadow-2xs group"
+                      >
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-500 group-hover:scale-110 transition-transform" />
+                        <span>Suggerimento</span>
+                      </button>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-950 dark:text-amber-100 text-xs animate-in fade-in duration-200 space-y-1">
+                        <div className="font-bold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                          <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          <span>Suggerimento di Socrate:</span>
+                        </div>
+                        <p className="leading-relaxed opacity-95">
+                          {currentQ.hint || 'Rileggi con attenzione il testo della domanda e prova a collegare i concetti chiave con le regole studiate.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Options */}
@@ -626,8 +661,14 @@ export function QuizModal({
                       }`}
                     >
                       <div className="space-y-1 min-w-0">
-                        <div className="font-semibold truncate">
-                          {i + 1}. {ans.questionText}
+                        <div className="font-semibold truncate flex items-center gap-1.5 flex-wrap">
+                          <span>{i + 1}. {ans.questionText}</span>
+                          {ans.usedHint && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-md border border-amber-300/60 dark:border-amber-800/50 flex-shrink-0">
+                              <Lightbulb className="w-2.5 h-2.5 text-amber-500" />
+                              Con suggerimento
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] opacity-80">{ans.explanation}</p>
                       </div>

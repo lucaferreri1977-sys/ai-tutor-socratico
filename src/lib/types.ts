@@ -77,6 +77,7 @@ export interface QuizQuestion {
   options: string[];
   correctOptionIndex: number;
   explanation: string;
+  hint?: string;
 }
 
 export interface QuizAnswer {
@@ -86,6 +87,7 @@ export interface QuizAnswer {
   correctOption: number;
   isCorrect: boolean;
   explanation: string;
+  usedHint?: boolean;
 }
 
 export interface QuizTestRecord {

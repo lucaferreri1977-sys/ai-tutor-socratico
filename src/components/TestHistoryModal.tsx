@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SubjectId, SUBJECTS, StudentId, STUDENTS, QuizTestRecord } from '@/lib/types';
-import { X, Award, CheckCircle2, XCircle } from 'lucide-react';
+import { X, Award, CheckCircle2, XCircle, Lightbulb } from 'lucide-react';
 
 interface TestHistoryModalProps {
   isOpen: boolean;
@@ -139,8 +139,14 @@ export function TestHistoryModal({
                       )}
                     </div>
 
-                    <div className="text-[11px] opacity-90">
-                      {ans.isCorrect ? '✅ Hai risposto correttamente!' : '❌ Risposta errata selezionata durante il test.'}
+                    <div className="text-[11px] opacity-90 flex items-center justify-between gap-2 flex-wrap">
+                      <span>{ans.isCorrect ? '✅ Hai risposto correttamente!' : '❌ Risposta errata selezionata durante il test.'}</span>
+                      {ans.usedHint && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-md border border-amber-300/60 dark:border-amber-800/50 flex-shrink-0">
+                          <Lightbulb className="w-2.5 h-2.5 text-amber-500" />
+                          Ha usato l&apos;indizio
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-[11px] opacity-80 pt-1 border-t border-slate-200/40 dark:border-slate-700/40">

@@ -148,8 +148,9 @@ REGOLE TASSATIVE:
 2. Ogni domanda deve avere ESATTAMENTE 4 opzioni di risposta (una sola corretta e tre plausibili distrattori didattici).
 3. DISTRIBUZIONE CASUALE: Alterna e distribuisci la risposta corretta in modo casuale ed equilibrato tra tutte le posizioni (A, B, C, D), variando il valore di 'correctOptionIndex' (0, 1, 2 o 3). NON inserire sempre la risposta corretta al primo posto!
 4. VARIETÀ ASSOLUTA: Nessuna domanda deve essere identica o quasi identica a quelle già viste in precedenza dallo studente né a un'altra domanda dello stesso test.
-5. Includi una spiegazione chiara, incoraggiante e formativa per ciascuna domanda.
-6. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown extra o testo fuori dal JSON.
+5. SUGGERIMENTO MAIEUTICO ("hint"): Per ciascuna domanda DEVI generare un campo "hint" (suggerimento socratico). Deve essere un breve indizio di metodo, un promemoria di regola o una pista di ragionamento per aiutare lo studente a sbloccarsi da solo, SENZA MAI svelare la risposta esatta né fare riferimenti alle opzioni o alle lettere (A, B, C, D).
+6. Includi una spiegazione chiara, incoraggiante e formativa per ciascuna domanda.
+7. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido privo di markdown extra o testo fuori dal JSON.
 
 Formato JSON atteso:
 {
@@ -160,6 +161,7 @@ Formato JSON atteso:
       "question": "Testo chiaro della prima domanda...",
       "options": ["Distrattore A", "Risposta corretta", "Distrattore C", "Distrattore D"],
       "correctOptionIndex": 1,
+      "hint": "Indizio di metodo o promemoria di ragionamento senza dare la soluzione...",
       "explanation": "Spiegazione didattica del perché questa è la risposta corretta..."
     }
   ]
@@ -262,6 +264,7 @@ Genera ${questionCount} domande a scelta multipla COMPLETAMENTE NUOVE E MAI RIPE
         id: q.id || `q-${qIdx + 1}`,
         options: shuffledOptions,
         correctOptionIndex: newCorrectIndex !== -1 ? newCorrectIndex : 0,
+        hint: typeof q.hint === 'string' && q.hint.trim() ? q.hint.trim() : undefined,
       };
     });
 
