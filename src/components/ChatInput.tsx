@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Send, Image as ImageIcon, X } from 'lucide-react';
+import { Send, Image as ImageIcon, X, Loader2 } from 'lucide-react';
+import { compressImage } from '@/lib/image-utils';
 
 interface ChatInputProps {
   onSendMessage: (text: string, images?: string[] | string) => void;
@@ -16,6 +17,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const MAX_IMAGES = 6;
@@ -28,7 +30,7 @@ export function ChatInput({
     }
   }, [input]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
@@ -38,28 +40,28 @@ export function ChatInput({
       return;
     }
 
-    for (const file of files) {
-      // Check size (< 6MB per image)
-      if (file.size > 6 * 1024 * 1024) {
-        alert(`L'immagine "${file.name}" supera 6MB. Scegli una foto più leggera.`);
-        continue;
+    setIsCompressing(true);
+
+    try {
+      const compressedList: string[] = [];
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) continue;
+        // Comprimi e ottimizza client-side per evitare 413 su Vercel
+        const compressed = await compressImage(file, 1400, 0.78);
+        compressedList.push(compressed);
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          setSelectedImages((prev) => {
-            if (prev.length >= MAX_IMAGES) return prev;
-            return [...prev, result];
-          });
-        }
-      };
-      reader.readAsDataURL(file);
+      setSelectedImages((prev) => {
+        const combined = [...prev, ...compressedList];
+        return combined.slice(0, MAX_IMAGES);
+      });
+    } catch (err) {
+      console.error('Errore elaborazione immagini:', err);
+      alert('Impossibile elaborare alcune foto. Riprova con un formato JPG o PNG.');
+    } finally {
+      setIsCompressing(false);
+      e.target.value = '';
     }
-
-    // Reset file input so same files can be reselected if removed
-    e.target.value = '';
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
@@ -90,6 +92,14 @@ export function ChatInput({
     >
       <div className="max-w-4xl mx-auto space-y-2">
 
+        {/* Compressing indicator */}
+        {isCompressing && (
+          <div className="p-2 sm:p-2.5 bg-sky-50 dark:bg-sky-950/50 rounded-2xl border border-sky-400/40 flex items-center gap-2 text-xs text-sky-700 dark:text-sky-300 animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin text-sky-600 dark:text-sky-400 flex-shrink-0" />
+            <span className="font-medium">Ottimizzazione foto in corso per una risposta rapida e nitida...</span>
+          </div>
+        )}
+
         {/* Selected images preview list */}
         {selectedImages.length > 0 && (
           <div className="p-2 sm:p-2.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-sky-400/40 animate-in fade-in space-y-2">
@@ -101,8 +111,9 @@ export function ChatInput({
               {selectedImages.length < MAX_IMAGES && (
                 <button
                   type="button"
+                  disabled={isCompressing}
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:underline cursor-pointer flex items-center gap-1"
+                  className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:underline cursor-pointer flex items-center gap-1 disabled:opacity-50"
                 >
                   + Aggiungi altra foto
                 </button>
@@ -153,13 +164,17 @@ export function ChatInput({
           {/* Upload photo button */}
           <button
             type="button"
-            disabled={disabled}
+            disabled={disabled || isCompressing}
             onClick={() => fileInputRef.current?.click()}
             title="Carica foto del quaderno o del libro (puoi selezionarne più di una)"
-            className="relative w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-sky-950 hover:text-sky-600 dark:hover:text-sky-400 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center cursor-pointer flex-shrink-0 touch-manipulation"
+            className="relative w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-sky-950 hover:text-sky-600 dark:hover:text-sky-400 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center cursor-pointer flex-shrink-0 touch-manipulation disabled:opacity-50"
           >
-            <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            {selectedImages.length > 0 && (
+            {isCompressing ? (
+              <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-sky-600 dark:text-sky-400" />
+            ) : (
+              <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            )}
+            {!isCompressing && selectedImages.length > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
                 {selectedImages.length}
               </span>
@@ -173,10 +188,12 @@ export function ChatInput({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={disabled}
+              disabled={disabled || isCompressing}
               rows={1}
               placeholder={
-                selectedImages.length > 0
+                isCompressing
+                  ? 'Ottimizzazione immagini in corso...'
+                  : selectedImages.length > 0
                   ? `Fai una domanda sulle ${selectedImages.length} foto o premi Invio...`
                   : 'Scrivi qui il tuo dubbio o esercizio...'
               }
@@ -187,7 +204,7 @@ export function ChatInput({
           {/* Send button */}
           <button
             type="submit"
-            disabled={disabled || (!input.trim() && selectedImages.length === 0)}
+            disabled={disabled || isCompressing || (!input.trim() && selectedImages.length === 0)}
             className="w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-xl sm:rounded-2xl bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-40 disabled:hover:bg-sky-600 shadow-md shadow-sky-600/20 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center touch-manipulation"
             title="Invia messaggio"
           >

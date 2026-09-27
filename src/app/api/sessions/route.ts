@@ -98,6 +98,30 @@ export async function POST(req: Request) {
       sessionData.createdAt = now;
     }
 
+    // Protezione limite 1MB di Firebase Firestore per documento:
+    // Se la sessione include molte foto base64 che superano 750KB, ripulisci i dati base64 pesanti
+    // mantenendo il conteggio degli allegati per il pannello genitori e la cronologia
+    try {
+      const estimatedSize = JSON.stringify(sessionData).length;
+      if (estimatedSize > 750000) {
+        sessionData.messages = (messages || []).map((m: any) => {
+          const hasImages = m.imageUrl || (m.imageUrls && m.imageUrls.length > 0);
+          if (hasImages) {
+            return {
+              ...m,
+              imageUrl: undefined,
+              imageUrls: undefined,
+              hasAttachments: true,
+              attachmentCount: m.imageUrls?.length || (m.imageUrl ? 1 : 0),
+            };
+          }
+          return m;
+        });
+      }
+    } catch {
+      // Ignora errori di calcolo dimensione e procedi
+    }
+
     await sessionRef.set(sessionData, { merge: true });
 
     return new Response(JSON.stringify({ success: true, id: sessionId }), {

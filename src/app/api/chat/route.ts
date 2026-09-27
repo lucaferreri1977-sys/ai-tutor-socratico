@@ -58,16 +58,26 @@ export async function POST(req: Request) {
     const effectiveStudentName = studentName || user.name;
     const systemPrompt = buildSocraticSystemPrompt(subject, effectiveStudentName);
 
-    // 3. Conversione messaggi per modello con supporto multimodale foto singole o multiple
+    // 3. Conversione messaggi per modello con supporto multimodale foto singole o multiple.
+    // Individua l'ultimo messaggio dell'utente contenente foto per preservare il contesto visivo anche nei turni successivi.
+    let lastUserMessageWithImagesIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      const hasImg = (msg.imageUrls && msg.imageUrls.length > 0) || !!msg.imageUrl;
+      if (msg.role === 'user' && hasImg) {
+        lastUserMessageWithImagesIndex = i;
+        break;
+      }
+    }
+
     const modelMessages = messages.map((msg, index) => {
-      const isLatestUserMessage =
-        index === messages.length - 1 && msg.role === 'user';
+      const shouldIncludeImages = index === lastUserMessageWithImagesIndex;
 
       const images = (msg.imageUrls && msg.imageUrls.length > 0)
         ? msg.imageUrls
         : (msg.imageUrl ? [msg.imageUrl] : []);
 
-      if (isLatestUserMessage && images.length > 0) {
+      if (shouldIncludeImages && images.length > 0) {
         return {
           role: 'user' as const,
           content: [

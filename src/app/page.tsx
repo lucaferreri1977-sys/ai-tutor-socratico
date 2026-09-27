@@ -262,6 +262,20 @@ export default function Home() {
     }
 
     try {
+      // Mantieni le immagini solo per il messaggio più recente che le contiene,
+      // azzerando il payload delle immagini nei messaggi precedenti per evitare accumuli di peso e 413
+      const lastIndexWithImgs = newMessages.reduce(
+        (acc, m, idx) => ((m.imageUrls && m.imageUrls.length > 0) || m.imageUrl ? idx : acc),
+        -1
+      );
+
+      const payloadMessages = newMessages.map((m, idx) => ({
+        role: m.role,
+        content: m.content,
+        imageUrl: idx === lastIndexWithImgs ? m.imageUrl : undefined,
+        imageUrls: idx === lastIndexWithImgs ? m.imageUrls : undefined,
+      }));
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -270,18 +284,16 @@ export default function Home() {
           'x-family-pin': currentUser.token,
         },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({
-            role: m.role,
-            content: m.content,
-            imageUrl: m.imageUrl,
-            imageUrls: m.imageUrls,
-          })),
+          messages: payloadMessages,
           subject: currentSubject,
           studentName: activeStudentProfile.name,
         }),
       });
 
       if (!response.ok) {
+        if (response.status === 413) {
+          throw new Error('Le foto allegate sono troppo pesanti per il server. Riprova con meno foto o scattando a risoluzione standard.');
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Errore del server (${response.status})`);
       }
