@@ -3,6 +3,7 @@
 import React from 'react';
 import { ChatSessionSummary, StudentId, SUBJECTS, SubjectId } from '@/lib/types';
 import { X, Plus, Clock, BookOpen, MessageSquare } from 'lucide-react';
+import { formatDateTime } from '@/lib/date-utils';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -76,12 +77,7 @@ export function HistoryDrawer({
             sessions.map((sess) => {
               const subjMeta = SUBJECTS[sess.subject as SubjectId] || SUBJECTS.matematica;
               const isSelected = sess.id === currentSessionId;
-              const dateStr = sess.updatedAt ? new Date(sess.updatedAt).toLocaleDateString([], {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              }) : '';
+              const dateStr = formatDateTime(sess.updatedAt || sess.createdAt);
 
               return (
                 <div
@@ -101,7 +97,10 @@ export function HistoryDrawer({
                       <span className="text-sm">{subjMeta.emoji}</span>
                       <span className="font-semibold text-slate-700 dark:text-slate-300">{subjMeta.name}</span>
                       <span>•</span>
-                      <span className="text-[11px] text-slate-400">{dateStr}</span>
+                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5" />
+                        {dateStr}
+                      </span>
                     </div>
 
                     <h3 className="font-medium text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">

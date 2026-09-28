@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { SubjectId, SUBJECTS, StudentId, STUDENTS, ChatSessionSummary, QuizTestRecord } from '@/lib/types';
-import { Plus, MessageSquare, Award, ChevronRight } from 'lucide-react';
+import { Plus, MessageSquare, Award, ChevronRight, Clock } from 'lucide-react';
+import { formatDateTime } from '@/lib/date-utils';
 
 interface SubjectRoomsSidebarProps {
   isOpen: boolean;
@@ -177,6 +178,7 @@ export function SubjectRoomsSidebar({
                     ) : (
                       visibleSessions.slice(0, 15).map((sess) => {
                         const isSelected = sess.id === currentSessionId;
+                        const timeFormatted = formatDateTime(sess.updatedAt || sess.createdAt);
                         return (
                           <div
                             key={sess.id}
@@ -184,14 +186,22 @@ export function SubjectRoomsSidebar({
                               onSelectSession(sess.id);
                               if (window.innerWidth < 768) onClose();
                             }}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+                            className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-xs transition-all cursor-pointer ${
                               isSelected
                                 ? 'bg-sky-100 dark:bg-sky-950/80 text-sky-900 dark:text-sky-100 font-medium'
                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
                             }`}
                           >
-                            <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                            <span className="truncate">{sess.title}</span>
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <span className="truncate block font-medium">{sess.title}</span>
+                              {timeFormatted && (
+                                <div className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                                  <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                                  <span className="truncate">{timeFormatted}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         );
                       })
@@ -222,48 +232,51 @@ export function SubjectRoomsSidebar({
                         </p>
                       </div>
                     ) : (
-                      visibleQuizzes.slice(0, 15).map((quiz) => (
-                        <div
-                          key={quiz.id}
-                          onClick={() => {
-                            if (onSelectQuizDetail) {
-                              onSelectQuizDetail(quiz);
-                            } else {
-                              onOpenTestHistory();
-                            }
-                            if (window.innerWidth < 768) onClose();
-                          }}
-                          className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 border border-slate-200/70 dark:border-slate-800 transition-all cursor-pointer flex items-center justify-between gap-2 group"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                              <span>{SUBJECTS[quiz.subject as SubjectId]?.emoji}</span>
-                              <span className="truncate">{quiz.topic}</span>
+                      visibleQuizzes.slice(0, 15).map((quiz) => {
+                        const timeFormatted = formatDateTime(quiz.completedAt);
+                        return (
+                          <div
+                            key={quiz.id}
+                            onClick={() => {
+                              if (onSelectQuizDetail) {
+                                onSelectQuizDetail(quiz);
+                              } else {
+                                onOpenTestHistory();
+                              }
+                              if (window.innerWidth < 768) onClose();
+                            }}
+                            className="p-2.5 rounded-xl bg-white dark:bg-slate-800/80 hover:bg-sky-50 dark:hover:bg-slate-700/80 border border-slate-200/70 dark:border-slate-800 transition-all cursor-pointer flex items-center justify-between gap-2 group"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                <span className="text-xs">{SUBJECTS[quiz.subject as SubjectId]?.emoji}</span>
+                                <span className="truncate">{quiz.topic}</span>
+                              </div>
+                              {timeFormatted && (
+                                <div className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                                  <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                                  <span className="truncate">{timeFormatted}</span>
+                                </div>
+                              )}
                             </div>
-                            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5">
-                              {new Date(quiz.completedAt).toLocaleDateString([], {
-                                day: '2-digit',
-                                month: 'short',
-                              })}
-                            </div>
-                          </div>
 
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <span
-                              className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
-                                quiz.grade >= 8
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                  : quiz.grade >= 6
-                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                              }`}
-                            >
-                              {quiz.grade}/10
-                            </span>
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-600" />
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <span
+                                className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+                                  quiz.grade >= 8
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : quiz.grade >= 6
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                }`}
+                              >
+                                {quiz.grade}/10
+                              </span>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-600" />
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 )}

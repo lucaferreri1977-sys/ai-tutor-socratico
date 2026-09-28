@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { SubjectId, SUBJECTS, StudentId, STUDENTS, QuizTestRecord } from '@/lib/types';
-import { X, Award, CheckCircle2, XCircle, Lightbulb } from 'lucide-react';
+import { X, Award, CheckCircle2, XCircle, Lightbulb, Clock } from 'lucide-react';
+import { formatDateTime } from '@/lib/date-utils';
 
 interface TestHistoryModalProps {
   isOpen: boolean;
@@ -103,13 +104,9 @@ export function TestHistoryModal({
                   </div>
                 </div>
 
-                <span className="text-[11px] sm:text-xs text-slate-400 sm:text-right flex-shrink-0">
-                  {new Date(viewingQuiz.completedAt).toLocaleDateString([], {
-                    day: '2-digit',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                <span className="text-[11px] sm:text-xs text-slate-400 sm:text-right flex-shrink-0 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  {formatDateTime(viewingQuiz.completedAt)}
                 </span>
               </div>
 

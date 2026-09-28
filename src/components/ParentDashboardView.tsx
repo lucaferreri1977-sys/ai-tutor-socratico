@@ -16,8 +16,10 @@ import {
   Calendar,
   Sparkles,
   TrendingUp,
+  Clock,
 } from 'lucide-react';
 import { MathMarkdown } from './MathMarkdown';
+import { formatDateTime } from '@/lib/date-utils';
 
 interface ParentDashboardViewProps {
   currentUser: AuthSession;
@@ -220,14 +222,9 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                 </div>
               </div>
 
-              <span className="text-xs text-slate-400">
-                {new Date(viewingQuiz.completedAt).toLocaleDateString([], {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+              <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                {formatDateTime(viewingQuiz.completedAt)}
               </span>
             </div>
 
@@ -303,13 +300,9 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                   {viewingSession.title}
                 </h3>
               </div>
-              <span className="text-xs text-slate-400">
-                {new Date(viewingSession.updatedAt).toLocaleDateString([], {
-                  day: '2-digit',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+              <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                {formatDateTime(viewingSession.updatedAt || viewingSession.createdAt)}
               </span>
             </div>
 
@@ -625,13 +618,7 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                     ) : (
                       filteredQuizzes.map((quiz) => {
                         const subjMeta = SUBJECTS[quiz.subject as SubjectId] || SUBJECTS.matematica;
-                        const dateStr = new Date(quiz.completedAt).toLocaleDateString([], {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        });
+                        const dateStr = formatDateTime(quiz.completedAt);
 
                         return (
                           <div
@@ -649,7 +636,10 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                                   {subjMeta.emoji} {subjMeta.name}
                                 </span>
                                 <span>&bull;</span>
-                                <span className="text-[11px] text-slate-400">{dateStr}</span>
+                                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {dateStr}
+                                </span>
                               </div>
                               <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                                 {quiz.topic}
@@ -697,13 +687,7 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                     ) : (
                       filteredSessions.map((sess: any) => {
                         const subjMeta = SUBJECTS[sess.subject as SubjectId] || SUBJECTS.matematica;
-                        const dateStr = new Date(sess.updatedAt).toLocaleDateString([], {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        });
+                        const dateStr = formatDateTime(sess.updatedAt || sess.createdAt);
 
                         return (
                           <div
@@ -721,7 +705,10 @@ export function ParentDashboardView({ currentUser, onLogout }: ParentDashboardVi
                                   {subjMeta.emoji} {subjMeta.name}
                                 </span>
                                 <span>&bull;</span>
-                                <span className="text-[11px] text-slate-400">{dateStr}</span>
+                                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {dateStr}
+                                </span>
                               </div>
                               <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                                 {sess.title}

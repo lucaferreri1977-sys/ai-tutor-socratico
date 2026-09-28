@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { StudentId, STUDENTS, SUBJECTS, SubjectId, QuizTestRecord } from '@/lib/types';
-import { X, ShieldCheck, BarChart3, MessageSquare, Award, ArrowLeft, ChevronRight, CheckCircle2, XCircle, Lock } from 'lucide-react';
+import { X, ShieldCheck, BarChart3, MessageSquare, Award, ArrowLeft, ChevronRight, CheckCircle2, XCircle, Lock, Clock } from 'lucide-react';
 import { MathMarkdown } from './MathMarkdown';
+import { formatDateTime } from '@/lib/date-utils';
 
 interface ParentDashboardModalProps {
   isOpen: boolean;
@@ -312,13 +313,9 @@ export function ParentDashboardModal({
                         Valutazione conseguita: <strong className="text-sky-600 text-lg">{viewingQuiz.grade}/10</strong> ({viewingQuiz.score}/{viewingQuiz.maxScore} corrette)
                       </h3>
                     </div>
-                    <span className="text-xs text-slate-400">
-                      {new Date(viewingQuiz.completedAt).toLocaleDateString([], {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                    <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      {formatDateTime(viewingQuiz.completedAt)}
                     </span>
                   </div>
 
@@ -387,13 +384,9 @@ export function ParentDashboardModal({
                         {viewingSession.title}
                       </h3>
                     </div>
-                    <span className="text-xs text-slate-400">
-                      {new Date(viewingSession.updatedAt).toLocaleDateString([], {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                    <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      {formatDateTime(viewingSession.updatedAt || viewingSession.createdAt)}
                     </span>
                   </div>
 
@@ -472,12 +465,7 @@ export function ParentDashboardModal({
                     ) : (
                       filteredQuizzes.map((quiz) => {
                         const subjMeta = SUBJECTS[quiz.subject as SubjectId] || SUBJECTS.matematica;
-                        const dateStr = new Date(quiz.completedAt).toLocaleDateString([], {
-                          day: '2-digit',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        });
+                        const dateStr = formatDateTime(quiz.completedAt);
 
                         return (
                           <div
@@ -493,7 +481,10 @@ export function ParentDashboardModal({
                                 <span>•</span>
                                 <span>{subjMeta.emoji} {subjMeta.name}</span>
                                 <span>•</span>
-                                <span className="text-[11px] text-slate-400">{dateStr}</span>
+                                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {dateStr}
+                                </span>
                               </div>
                               <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                                 {quiz.topic}
@@ -597,12 +588,7 @@ export function ParentDashboardModal({
                   ) : (
                     filteredSessions.map((sess: any) => {
                       const subjMeta = SUBJECTS[sess.subject as SubjectId] || SUBJECTS.matematica;
-                      const dateStr = new Date(sess.updatedAt).toLocaleDateString([], {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      });
+                      const dateStr = formatDateTime(sess.updatedAt || sess.createdAt);
 
                       return (
                         <div
@@ -618,7 +604,10 @@ export function ParentDashboardModal({
                               <span>•</span>
                               <span>{subjMeta.emoji} {subjMeta.name}</span>
                               <span>•</span>
-                              <span className="text-[11px] text-slate-400">{dateStr}</span>
+                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5" />
+                                {dateStr}
+                              </span>
                             </div>
                             <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                               {sess.title}
