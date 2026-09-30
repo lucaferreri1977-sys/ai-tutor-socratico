@@ -58,39 +58,90 @@ export async function POST(req: Request) {
     const effectiveStudentName = studentName || user.name;
     const systemPrompt = buildSocraticSystemPrompt(subject, effectiveStudentName);
 
-    // 3. Ottimizzazione consumo Token e Conversione Messaggi:
-    // a) Finestra temporale (Sliding Window): manteniamo max 12 messaggi recenti per evitare crescita quadratica dei token.
-    const MAX_CONTEXT_MESSAGES = 12;
-    const windowedMessages = messages.length > MAX_CONTEXT_MESSAGES
-      ? messages.slice(-MAX_CONTEXT_MESSAGES)
-      : messages;
-
-    // b) Smart Image Detachment: individuiamo l'ultimo messaggio con foto.
-    // Le immagini visive (ad alto consumo di token) vengono trasmesse al modello SOLO se il messaggio con foto
-    // è recente (entro gli ultimi 3 messaggi della finestra). Una volta che Socrate ha risposto e impostato
-    // l'esercizio, il testo della conversazione descrive già il problema e non serve ri-fatturare le immagini ad ogni turno.
-    let lastUserMessageWithImagesIndex = -1;
-    for (let i = windowedMessages.length - 1; i >= 0; i--) {
-      const msg = windowedMessages[i];
+    // 3. Gestione della memoria didattica, visiva e finestra contestuale:
+    // Individuiamo l'ultimo messaggio dell'utente che ha caricato foto nella sessione
+    let activeImageMessageIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
       const hasImg = (msg.imageUrls && msg.imageUrls.length > 0) || !!msg.imageUrl;
       if (msg.role === 'user' && hasImg) {
-        lastUserMessageWithImagesIndex = i;
+        activeImageMessageIndex = i;
         break;
       }
     }
 
-    const isImageFresh =
-      lastUserMessageWithImagesIndex !== -1 &&
-      (windowedMessages.length - 1 - lastUserMessageWithImagesIndex) <= 3;
+    // Sliding Window intelligente:
+    // Manteniamo fino a 14 messaggi recenti per la fluidità del dialogo.
+    // FONDAMENTALE: se il messaggio con le foto del libro/compito è antecedente,
+    // lo preserviamo SEMPRE come primo messaggio del contesto con la prima risposta di Socrate.
+    // In questo modo Socrate non dice MAI "non c'è nessuna foto" e mantiene sempre
+    // la visione completa delle pagine del libro durante tutto lo studio.
+    const MAX_RECENT_MESSAGES = 14;
+    let windowedMessages: ClientMessage[] = [];
 
-    const modelMessages = windowedMessages.map((msg, index) => {
-      const isTargetImageMessage = index === lastUserMessageWithImagesIndex;
-      const images = (msg.imageUrls && msg.imageUrls.length > 0)
-        ? msg.imageUrls
-        : (msg.imageUrl ? [msg.imageUrl] : []);
+    if (messages.length <= MAX_RECENT_MESSAGES) {
+      windowedMessages = [...messages];
+    } else {
+      const recentSlice = messages.slice(-MAX_RECENT_MESSAGES);
+      if (activeImageMessageIndex !== -1 && activeImageMessageIndex < messages.length - MAX_RECENT_MESSAGES) {
+        const imageMsg = messages[activeImageMessageIndex];
+        const nextMsg = messages[activeImageMessageIndex + 1];
+        const initialPair = nextMsg && nextMsg.role === 'assistant' ? [imageMsg, nextMsg] : [imageMsg];
+        const recentFiltered = recentSlice.filter(
+          (m) => m.id !== imageMsg.id && (!nextMsg || m.id !== nextMsg.id)
+        );
+        windowedMessages = [...initialPair, ...recentFiltered];
+      } else {
+        windowedMessages = [...recentSlice];
+      }
+    }
 
-      // Includi i payload pesanti delle immagini solo se è il messaggio target ED è fresco
-      if (isTargetImageMessage && isImageFresh && images.length > 0) {
+    // Assicuriamo che la sequenza inizi sempre con un messaggio 'user' (requisito API Gemini)
+    while (windowedMessages.length > 0 && windowedMessages[0].role !== 'user') {
+      windowedMessages.shift();
+    }
+
+    // Fusione di messaggi consecutivi con lo stesso ruolo per garantire rigorosa alternanza user <-> assistant
+    const mergedMessages: ClientMessage[] = [];
+    for (const msg of windowedMessages) {
+      const prev = mergedMessages[mergedMessages.length - 1];
+      if (prev && prev.role === msg.role) {
+        prev.content = `${prev.content}\n${msg.content}`.trim();
+        const prevImgs = prev.imageUrls || (prev.imageUrl ? [prev.imageUrl] : []);
+        const curImgs = msg.imageUrls || (msg.imageUrl ? [msg.imageUrl] : []);
+        const combinedImgs = [...prevImgs, ...curImgs];
+        if (combinedImgs.length > 0) {
+          prev.imageUrls = combinedImgs;
+          prev.imageUrl = combinedImgs[0];
+        }
+      } else {
+        mergedMessages.push({ ...msg });
+      }
+    }
+
+    // Individuiamo l'indice del messaggio con foto all'interno dei messaggi normalizzati
+    let targetImageMsgIndex = -1;
+    for (let i = mergedMessages.length - 1; i >= 0; i--) {
+      const m = mergedMessages[i];
+      if (m.role === 'user' && ((m.imageUrls && m.imageUrls.length > 0) || !!m.imageUrl)) {
+        targetImageMsgIndex = i;
+        break;
+      }
+    }
+
+    const modelMessages = mergedMessages.map((msg, index) => {
+      const isTargetImageMessage = index === targetImageMsgIndex;
+      const images =
+        msg.imageUrls && msg.imageUrls.length > 0
+          ? msg.imageUrls
+          : msg.imageUrl
+          ? [msg.imageUrl]
+          : [];
+
+      // Alleghiamo SEMPRE le immagini caricate dello studio attivo al messaggio target.
+      // Le immagini sono compresse client-side a 1024px (~258 token ciascuna),
+      // garantendo costi minimi e massima accuratezza didattica per tutta la sessione.
+      if (isTargetImageMessage && images.length > 0) {
         return {
           role: 'user' as const,
           content: [
@@ -108,14 +159,9 @@ export async function POST(req: Request) {
         };
       }
 
-      // Se le immagini sono già state elaborate nei turni precedenti, usiamo solo il testo per risparmiare token
-      const defaultText = images.length > 0
-        ? `[Foto del compito esaminata nei turni precedenti]`
-        : '';
-
       return {
         role: msg.role as 'user' | 'assistant',
-        content: msg.content || defaultText || 'Continuiamo.',
+        content: msg.content || 'Continuiamo.',
       };
     });
 
@@ -124,7 +170,7 @@ export async function POST(req: Request) {
       system: systemPrompt,
       messages: modelMessages,
       temperature: 0.35, // disciplined pedagogical focus
-      maxOutputTokens: 2048, // capiente per riassunti didattici strutturati e spiegazioni di studio complete
+      maxOutputTokens: 8192, // capiente per evitare qualsiasi blocco a metà durante riassunti, schemi o spiegazioni estese
     });
 
     return result.toTextStreamResponse();
