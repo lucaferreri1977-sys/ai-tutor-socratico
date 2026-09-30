@@ -46,8 +46,8 @@ export function ChatInput({
       const compressedList: string[] = [];
       for (const file of files) {
         if (!file.type.startsWith('image/')) continue;
-        // Comprimi e ottimizza client-side per evitare 413 su Vercel
-        const compressed = await compressImage(file, 1400, 0.78);
+        // Comprimi e ottimizza client-side per evitare 413 su Vercel e ridurre i token a singolo tile (1024px)
+        const compressed = await compressImage(file);
         compressedList.push(compressed);
       }
 
