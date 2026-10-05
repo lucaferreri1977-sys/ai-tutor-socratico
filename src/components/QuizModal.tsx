@@ -33,7 +33,7 @@ export function QuizModal({
   onQuizCompleted,
 }: QuizModalProps) {
   const [topicInput, setTopicInput] = useState('');
-  const [questionCount, setQuestionCount] = useState<number>(10);
+  const [questionCount, setQuestionCount] = useState<number>(20);
   const [images, setImages] = useState<AttachedImage[]>([]);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -475,11 +475,10 @@ export function QuizModal({
                 <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Quante domande vuoi fare?
                 </label>
-                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
                   {[
-                    { count: 10, label: 'Veloce' },
-                    { count: 20, label: 'Standard' },
-                    { count: 30, label: 'Approfondito' },
+                    { count: 20, label: 'Standard (20)' },
+                    { count: 30, label: 'Approfondito (30)' },
                   ].map((opt) => (
                     <button
                       key={opt.count}

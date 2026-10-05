@@ -133,10 +133,10 @@ export async function POST(req: Request) {
     const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
     const cleanedTopic = cleanTopicInput(topic);
     const promptTopic = cleanedTopic.length > 0 ? cleanedTopic : '';
-    // Il numero di domande è ESCLUSIVAMENTE quello preimpostato dai pulsanti (10, 20 o 30)
-    const allowedCounts = [10, 20, 30];
+    // Il numero di domande è ESCLUSIVAMENTE quello preimpostato dai pulsanti (minimo 20 o 30 domande)
+    const allowedCounts = [20, 30];
     const parsedCount = Number(rawCount);
-    const questionCount = allowedCounts.includes(parsedCount) ? parsedCount : (parsedCount === 5 ? 5 : 10);
+    const questionCount = allowedCounts.includes(parsedCount) ? parsedCount : 20;
     const hasImages = Array.isArray(images) && images.length > 0;
 
     // ==========================================
