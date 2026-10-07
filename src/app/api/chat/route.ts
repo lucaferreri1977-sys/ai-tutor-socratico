@@ -13,6 +13,7 @@ interface ClientMessage {
   content: string;
   imageUrl?: string;
   imageUrls?: string[];
+  fileNames?: string[];
 }
 
 export async function POST(req: Request) {
@@ -114,47 +115,64 @@ export async function POST(req: Request) {
           prev.imageUrls = combinedImgs;
           prev.imageUrl = combinedImgs[0];
         }
+        if (prev.fileNames || msg.fileNames) {
+          prev.fileNames = [...(prev.fileNames || []), ...(msg.fileNames || [])];
+        }
       } else {
         mergedMessages.push({ ...msg });
       }
     }
 
-    // Individuiamo l'indice del messaggio con foto all'interno dei messaggi normalizzati
-    let targetImageMsgIndex = -1;
+    // Individuiamo l'indice del messaggio con allegati (foto o PDF) all'interno dei messaggi normalizzati
+    let targetAttachmentMsgIndex = -1;
     for (let i = mergedMessages.length - 1; i >= 0; i--) {
       const m = mergedMessages[i];
       if (m.role === 'user' && ((m.imageUrls && m.imageUrls.length > 0) || !!m.imageUrl)) {
-        targetImageMsgIndex = i;
+        targetAttachmentMsgIndex = i;
         break;
       }
     }
 
     const modelMessages = mergedMessages.map((msg, index) => {
-      const isTargetImageMessage = index === targetImageMsgIndex;
-      const images =
+      const isTargetAttachmentMessage = index === targetAttachmentMsgIndex;
+      const attachments =
         msg.imageUrls && msg.imageUrls.length > 0
           ? msg.imageUrls
           : msg.imageUrl
           ? [msg.imageUrl]
           : [];
 
-      // Alleghiamo SEMPRE le immagini caricate dello studio attivo al messaggio target.
-      // Le immagini sono compresse client-side a 1024px (~258 token ciascuna),
-      // garantendo costi minimi e massima accuratezza didattica per tutta la sessione.
-      if (isTargetImageMessage && images.length > 0) {
+      // Alleghiamo SEMPRE gli allegati (immagini e documenti PDF) dello studio attivo al messaggio target.
+      // Le immagini sono compresse client-side a 1024px (~258 token) e i PDF vengono elaborati
+      // nativamente da Gemini, garantendo costi minimi e massima accuratezza didattica per tutta la sessione.
+      if (isTargetAttachmentMessage && attachments.length > 0) {
+        const hasPdf = attachments.some((att) => att.startsWith('data:application/pdf'));
+        const defaultPromptText = hasPdf
+          ? `Ho caricato ${attachments.length > 1 ? `${attachments.length} allegati (documenti PDF e/o foto delle pagine del libro)` : 'un documento PDF delle pagine del libro/compito'}. Aiutami a capire come procedere, a studiare o a schematizzare.`
+          : `Ho caricato ${attachments.length > 1 ? `${attachments.length} foto del mio compito o delle pagine del libro` : 'questa foto del mio compito'}. Aiutami a capire come procedere o a schematizzare per studiare.`;
+
+        const attachmentParts = attachments.map((att) => {
+          if (att.startsWith('data:application/pdf')) {
+            return {
+              type: 'file' as const,
+              data: att,
+              mediaType: 'application/pdf' as const,
+            };
+          }
+          return {
+            type: 'image' as const,
+            image: att,
+          };
+        });
+
         return {
           role: 'user' as const,
           content: [
             {
               type: 'text' as const,
-              text:
-                msg.content ||
-                `Ho caricato ${images.length > 1 ? `${images.length} foto del mio compito o delle pagine del libro` : 'questa foto del mio compito'}. Aiutami a capire come procedere o a schematizzare per studiare.`,
+              text: msg.content || defaultPromptText,
             },
-            ...images.map((img) => ({
-              type: 'image' as const,
-              image: img,
-            })),
+            ...attachmentParts,
           ],
         };
       }

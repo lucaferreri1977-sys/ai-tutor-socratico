@@ -105,14 +105,15 @@ export async function POST(req: Request) {
       const estimatedSize = JSON.stringify(sessionData).length;
       if (estimatedSize > 750000) {
         sessionData.messages = (messages || []).map((m: any) => {
-          const hasImages = m.imageUrl || (m.imageUrls && m.imageUrls.length > 0);
-          if (hasImages) {
+          const hasAttachments = m.imageUrl || (m.imageUrls && m.imageUrls.length > 0);
+          if (hasAttachments) {
             return {
               ...m,
               imageUrl: undefined,
               imageUrls: undefined,
               hasAttachments: true,
               attachmentCount: m.imageUrls?.length || (m.imageUrl ? 1 : 0),
+              fileNames: m.fileNames,
             };
           }
           return m;

@@ -218,12 +218,16 @@ export default function Home() {
   };
 
   // Send message
-  const handleSendMessage = async (text: string, imageOrImages?: string | string[]) => {
-    const images: string[] = Array.isArray(imageOrImages)
-      ? imageOrImages
-      : (imageOrImages ? [imageOrImages] : []);
+  const handleSendMessage = async (
+    text: string,
+    fileOrFiles?: string | string[],
+    fileNames?: string[]
+  ) => {
+    const files: string[] = Array.isArray(fileOrFiles)
+      ? fileOrFiles
+      : (fileOrFiles ? [fileOrFiles] : []);
 
-    if ((!text.trim() && images.length === 0) || isStreaming || !currentUser || !currentSubject) return;
+    if ((!text.trim() && files.length === 0) || isStreaming || !currentUser || !currentSubject) return;
 
     setApiError(null);
 
@@ -236,8 +240,9 @@ export default function Home() {
       id: `user-${Date.now()}`,
       role: 'user',
       content: text,
-      imageUrl: images[0],
-      imageUrls: images,
+      imageUrl: files[0],
+      imageUrls: files,
+      fileNames: fileNames,
       timestamp: timeString,
     };
 
@@ -263,9 +268,9 @@ export default function Home() {
     }
 
     try {
-      // Mantieni le immagini solo per il messaggio più recente che le contiene,
-      // azzerando il payload delle immagini nei messaggi precedenti per evitare accumuli di peso e 413
-      const lastIndexWithImgs = newMessages.reduce(
+      // Mantieni gli allegati (foto e PDF) solo per il messaggio più recente che li contiene,
+      // azzerando il payload nei messaggi precedenti per evitare accumuli di peso e 413
+      const lastIndexWithAttachments = newMessages.reduce(
         (acc, m, idx) => ((m.imageUrls && m.imageUrls.length > 0) || m.imageUrl ? idx : acc),
         -1
       );
@@ -273,8 +278,9 @@ export default function Home() {
       const payloadMessages = newMessages.map((m, idx) => ({
         role: m.role,
         content: m.content,
-        imageUrl: idx === lastIndexWithImgs ? m.imageUrl : undefined,
-        imageUrls: idx === lastIndexWithImgs ? m.imageUrls : undefined,
+        imageUrl: idx === lastIndexWithAttachments ? m.imageUrl : undefined,
+        imageUrls: idx === lastIndexWithAttachments ? m.imageUrls : undefined,
+        fileNames: idx === lastIndexWithAttachments ? m.fileNames : undefined,
       }));
 
       const response = await fetch('/api/chat', {
@@ -293,7 +299,7 @@ export default function Home() {
 
       if (!response.ok) {
         if (response.status === 413) {
-          throw new Error('Le foto allegate sono troppo pesanti per il server. Riprova con meno foto o scattando a risoluzione standard.');
+          throw new Error('I file o le foto allegate superano il limite di peso consentito dal server. Riprova con file più leggeri o meno pagine.');
         }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Errore del server (${response.status})`);

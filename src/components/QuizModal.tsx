@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SubjectId, SUBJECTS, StudentId, QuizQuestion, QuizAnswer, QuizTestRecord, ReinforcementRecapPoint } from '@/lib/types';
-import { X, CheckCircle2, XCircle, Award, Sparkles, ArrowRight, RotateCcw, Loader2, ImagePlus, Trash2, Lightbulb, Trophy, Target } from 'lucide-react';
+import { X, CheckCircle2, XCircle, Award, Sparkles, ArrowRight, RotateCcw, Loader2, ImagePlus, Trash2, Lightbulb, Trophy, Target, FileText, Paperclip } from 'lucide-react';
 import { fireCelebrationConfetti } from '@/lib/confetti';
 import { compressImage } from '@/lib/image-utils';
 import { cleanTopicInput } from '@/lib/topic-utils';
@@ -17,10 +17,11 @@ interface QuizModalProps {
   onQuizCompleted?: (record: QuizTestRecord) => void;
 }
 
-interface AttachedImage {
+interface AttachedFile {
   id: string;
   dataUrl: string;
   name: string;
+  isPdf?: boolean;
 }
 
 export function QuizModal({
@@ -34,7 +35,7 @@ export function QuizModal({
 }: QuizModalProps) {
   const [topicInput, setTopicInput] = useState('');
   const [questionCount, setQuestionCount] = useState<number>(20);
-  const [images, setImages] = useState<AttachedImage[]>([]);
+  const [images, setImages] = useState<AttachedFile[]>([]);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,21 +117,42 @@ export function QuizModal({
     setError(null);
 
     try {
-      const newImages: AttachedImage[] = [];
+      const newImages: AttachedFile[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        if (!file.type.startsWith('image/')) continue;
-        const compressedDataUrl = await compressImage(file);
-        newImages.push({
-          id: `${Date.now()}-${i}-${Math.random().toString(36).substring(5)}`,
-          dataUrl: compressedDataUrl,
-          name: file.name,
-        });
+        if (file.type.startsWith('image/')) {
+          const compressedDataUrl = await compressImage(file);
+          newImages.push({
+            id: `${Date.now()}-${i}-${Math.random().toString(36).substring(5)}`,
+            dataUrl: compressedDataUrl,
+            name: file.name,
+            isPdf: false,
+          });
+        } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          if (file.size > 4 * 1024 * 1024) {
+            alert(`Il file PDF "${file.name}" supera i 4MB. Allega un PDF più leggero o seleziona solo le pagine del capitolo.`);
+            continue;
+          }
+
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = (err) => reject(err);
+            reader.readAsDataURL(file);
+          });
+
+          newImages.push({
+            id: `${Date.now()}-${i}-${Math.random().toString(36).substring(5)}`,
+            dataUrl,
+            name: file.name,
+            isPdf: true,
+          });
+        }
       }
       setImages((prev) => [...prev, ...newImages]);
     } catch (e) {
-      console.error('Error processing images:', e);
-      setError('Impossibile caricare alcune foto. Riprova con un formato standard (JPG o PNG).');
+      console.error('Error processing files:', e);
+      setError('Impossibile caricare alcuni file. Riprova con JPG, PNG o PDF.');
     } finally {
       setIsProcessingImages(false);
       if (fileInputRef.current) {
@@ -522,15 +544,15 @@ export function QuizModal({
                 </p>
               </div>
 
-              {/* Sezione Caricamento Foto del Libro / Appunti */}
+              {/* Sezione Caricamento Foto del Libro / Documenti PDF */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <span>Foto delle pagine del libro o appunti (opzionale):</span>
+                    <span>Foto delle pagine del libro o documenti PDF (opzionale):</span>
                   </label>
                   {images.length > 0 && (
                     <span className="text-[11px] font-medium text-sky-600 dark:text-sky-400">
-                      {images.length} {images.length === 1 ? 'pagina caricata' : 'pagine caricate'}
+                      {images.length} {images.length === 1 ? 'allegato caricato' : 'allegati caricati'}
                     </span>
                   )}
                 </div>
@@ -539,39 +561,64 @@ export function QuizModal({
                   type="file"
                   ref={fileInputRef}
                   onChange={(e) => handleImageFiles(e.target.files)}
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   multiple
                   className="hidden"
                 />
 
-                {/* Previews Grid if photos are uploaded */}
+                {/* Previews Grid if files are uploaded */}
                 {images.length > 0 && (
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
                     {images.map((img, index) => (
-                      <div
-                        key={img.id}
-                        className="relative group aspect-3/4 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black/5 dark:bg-white/5"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={img.dataUrl}
-                          alt={`Pagina ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 text-center">
-                          <span className="text-[10px] text-white font-medium">
-                            Pagina {index + 1}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(img.id)}
-                          className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
-                          title="Rimuovi foto"
+                      img.isPdf || img.dataUrl.startsWith('data:application/pdf') ? (
+                        <div
+                          key={img.id}
+                          className="relative group aspect-3/4 rounded-xl overflow-hidden border-2 border-rose-400/60 bg-rose-50/80 dark:bg-rose-950/40 p-2 flex flex-col justify-between items-center text-center shadow-2xs"
                         >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
+                          <div className="flex flex-col items-center justify-center flex-1 w-full pt-1">
+                            <FileText className="w-7 h-7 text-rose-600 dark:text-rose-400 mb-1 flex-shrink-0" />
+                            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 line-clamp-2 break-all px-0.5" title={img.name}>
+                              {img.name}
+                            </span>
+                            <span className="mt-1 px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-[9px] font-bold">
+                              PDF
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(img.id)}
+                            className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
+                            title="Rimuovi documento"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          key={img.id}
+                          className="relative group aspect-3/4 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black/5 dark:bg-white/5"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img.dataUrl}
+                            alt={`Pagina ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 text-center">
+                            <span className="text-[10px] text-white font-medium">
+                              Foto {index + 1}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(img.id)}
+                            className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
+                            title="Rimuovi foto"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )
                     ))}
 
                     {/* Add More Button */}
@@ -581,8 +628,8 @@ export function QuizModal({
                       disabled={isProcessingImages}
                       className="aspect-3/4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-400 hover:bg-sky-50/50 dark:hover:bg-sky-950/20 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-sky-600 transition-all cursor-pointer"
                     >
-                      <ImagePlus className="w-5 h-5" />
-                      <span className="text-[10px] font-semibold">+ Altra foto</span>
+                      <Paperclip className="w-5 h-5" />
+                      <span className="text-[10px] font-semibold">+ Altro file</span>
                     </button>
                   </div>
                 )}
@@ -596,13 +643,13 @@ export function QuizModal({
                     className="w-full py-4 px-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-400 hover:bg-sky-50/40 dark:hover:bg-slate-800/60 transition-all flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer group"
                   >
                     <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <ImagePlus className="w-5 h-5" />
+                      <Paperclip className="w-5 h-5" />
                     </div>
                     <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      Aggiungi foto del libro o del quaderno
+                      Aggiungi foto o documenti PDF del libro / appunti
                     </span>
                     <span className="text-[11px] text-slate-400 max-w-xs">
-                      Scatta una foto alle pagine del libro: Socrate baserà le domande direttamente su quel testo e formule!
+                      Carica un file PDF o scatta foto alle pagine del libro: Socrate baserà le domande direttamente su quel testo e formule!
                     </span>
                   </button>
                 )}
@@ -624,7 +671,7 @@ export function QuizModal({
                 >
                   <Sparkles className="w-4 h-4" />
                   {images.length > 0
-                    ? `Avvia Verifica da ${images.length} foto (${questionCount} domande)`
+                    ? `Avvia Verifica da ${images.length} ${images.length === 1 ? 'allegato' : 'allegati'} (${questionCount} domande)`
                     : `Avvia Verifica (${questionCount} domande)`}
                 </button>
               </div>
@@ -638,12 +685,12 @@ export function QuizModal({
               <div className="space-y-1">
                 <p className="font-bold text-sm text-slate-800 dark:text-slate-200">
                   {images.length > 0
-                    ? 'Socrate sta leggendo le pagine e preparando il test...'
+                    ? 'Socrate sta leggendo i documenti/foto e preparando il test...'
                     : 'Socrate sta componendo il tuo test...'}
                 </p>
                 <p className="text-xs text-slate-500">
                   {images.length > 0
-                    ? `Analisi del materiale fotografato e generazione di ${questionCount} domande per ${subjectMeta.name}`
+                    ? `Analisi del materiale didattico caricato e generazione di ${questionCount} domande per ${subjectMeta.name}`
                     : `Generazione di ${questionCount} domande didattiche per ${subjectMeta.name}`}
                 </p>
               </div>

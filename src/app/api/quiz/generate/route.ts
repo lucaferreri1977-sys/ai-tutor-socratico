@@ -98,6 +98,8 @@ export async function POST(req: Request) {
       studentId,
       topic,
       images,
+      files,
+      attachments,
       questionCount: rawCount,
       excludeQuestions: clientExcludeQuestions,
       mode = 'standard',
@@ -107,6 +109,8 @@ export async function POST(req: Request) {
       studentId?: StudentId;
       topic?: string;
       images?: string[];
+      files?: string[];
+      attachments?: string[];
       questionCount?: number;
       excludeQuestions?: string[];
       mode?: 'standard' | 'reinforcement';
@@ -137,7 +141,8 @@ export async function POST(req: Request) {
     const allowedCounts = [20, 30];
     const parsedCount = Number(rawCount);
     const questionCount = allowedCounts.includes(parsedCount) ? parsedCount : 20;
-    const hasImages = Array.isArray(images) && images.length > 0;
+    const rawAttachments = images || files || attachments || [];
+    const hasAttachments = Array.isArray(rawAttachments) && rawAttachments.length > 0;
 
     // ==========================================
     // MODALITÀ REINFORCEMENT (RIPASSO & RECUPERO ERRORI)
@@ -329,11 +334,11 @@ Lo studente frequenta la **3ª Media in Italia**. Formula quesiti, esercizi e pr
 - Scienze: genetica e leggi di Mendel, DNA, sistema nervoso ed endocrino, astronomia e sistema solare, tettonica delle placche.
 - Italiano e altre materie: analisi logica del periodo, figure retoriche, Novecento storico, Costituzione e cittadinanza.
 
-${hasImages ? `ATTENZIONE SPECIFICA SULLE FOTO FORNITE:
-Lo studente ha caricato ${images.length} foto contenenti pagine di libro di testo o quaderno di 3ª Media.
-DEVI LEGGERE E ANALIZZARE ATTENTAMENTE IL TESTO, LE IMMAGINI, I GRAFICI (es. grafici cartesiani), LE DEFINIZIONI, LE FORMULE E GLI ESERCIZI NELLE IMMAGINI FORNITE.
-Le ${questionCount} domande DEVONO essere basate direttamente su quanto spiegato o illustrato in queste pagine fotografate.
-Se lo studente ha indicato un argomento ("${promptTopic || 'non specificato'}"), concentrati su quella sezione delle pagine; altrimenti copri i punti chiave delle pagine fotografate e indica l'argomento dedotto nel campo "topic".` : ''}
+${hasAttachments ? `ATTENZIONE SPECIFICA SUI DOCUMENTI / FOTO FORNITI:
+Lo studente ha caricato ${rawAttachments.length} allegati (documenti PDF e/o foto contenenti pagine di libro di testo o quaderno di 3ª Media).
+DEVI LEGGERE E ANALIZZARE ATTENTAMENTE IL TESTO, LE IMMAGINI, I GRAFICI (es. grafici cartesiani), LE DEFINIZIONI, LE FORMULE E GLI ESERCIZI NELLE PAGINE DEI DOCUMENTI/FOTO FORNITI.
+Le ${questionCount} domande DEVONO essere basate direttamente su quanto spiegato o illustrato in queste pagine.
+Se lo studente ha indicato un argomento ("${promptTopic || 'non specificato'}"), concentrati su quella sezione delle pagine; altrimenti copri i punti chiave dei documenti/foto e indica l'argomento dedotto nel campo "topic".` : ''}
 
 ${deduplicationInstructions}
 
@@ -352,7 +357,7 @@ REGOLE TASSATIVE:
 
 Formato JSON atteso:
 {
-  "topic": "${promptTopic || (hasImages ? 'Argomento tratto dalle pagine caricate' : subjectMeta.name)}",
+  "topic": "${promptTopic || (hasAttachments ? 'Argomento tratto dai documenti/foto caricati' : subjectMeta.name)}",
   "questions": [
     {
       "id": "q1",
@@ -368,8 +373,8 @@ Formato JSON atteso:
 
     // Construct prompt content
     let userPromptText = '';
-    if (hasImages) {
-      userPromptText = `Ecco le foto delle pagine del libro/quaderno su cui basare il test di verifica per ${subjectMeta.name}.
+    if (hasAttachments) {
+      userPromptText = `Ecco i documenti PDF / foto delle pagine del libro/quaderno su cui basare il test di verifica per ${subjectMeta.name}.
 ${promptTopic ? `Argomento di riferimento specificato: "${promptTopic}".` : 'Identifica l\'argomento dalle pagine.'}
 Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${questionCount} è fissato e vincolante) basate su queste pagine. Rispondi solo in formato JSON.`;
     } else {
@@ -379,16 +384,25 @@ Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${quest
     const userContent: Array<
       | { type: 'text'; text: string }
       | { type: 'image'; image: string }
+      | { type: 'file'; data: string; mediaType: string }
     > = [
       { type: 'text', text: userPromptText },
     ];
 
-    if (hasImages) {
-      for (const img of images) {
-        userContent.push({
-          type: 'image',
-          image: img,
-        });
+    if (hasAttachments) {
+      for (const item of rawAttachments) {
+        if (typeof item === 'string' && item.startsWith('data:application/pdf')) {
+          userContent.push({
+            type: 'file',
+            data: item,
+            mediaType: 'application/pdf',
+          });
+        } else if (typeof item === 'string') {
+          userContent.push({
+            type: 'image',
+            image: item,
+          });
+        }
       }
     }
 
@@ -418,7 +432,7 @@ Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${quest
       : randomizedQuestions;
 
     return new Response(JSON.stringify({
-      topic: promptTopic || parsed.topic || (hasImages ? `Verifica da ${images.length} foto libro` : subjectMeta.name),
+      topic: promptTopic || parsed.topic || (hasAttachments ? `Verifica da ${rawAttachments.length} ${rawAttachments.length === 1 ? 'allegato' : 'allegati'}` : subjectMeta.name),
       questions: finalQuestions,
     }), {
       status: 200,
