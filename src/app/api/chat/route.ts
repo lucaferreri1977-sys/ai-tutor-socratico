@@ -183,15 +183,54 @@ export async function POST(req: Request) {
       };
     });
 
+    let streamErrorMessage: string | null = null;
     const result = streamText({
       model: google(modelName),
       system: systemPrompt,
       messages: modelMessages,
       temperature: 0.35, // disciplined pedagogical focus
       maxOutputTokens: 8192, // capiente per evitare qualsiasi blocco a metà durante riassunti, schemi o spiegazioni estese
+      onError({ error }: { error: any }) {
+        console.error('Gemini streamText error:', error);
+        const msg = error?.message || String(error);
+        if (msg.includes('prepayment credits') || msg.includes('depleted') || error?.statusCode === 402) {
+          streamErrorMessage = 'I crediti dell\'API Google Gemini sono esauriti. Ricarica il credito prepagato su Google AI Studio (ai.studio/projects) per riprendere lo studio con Socrate.';
+        } else if (msg.includes('RESOURCE_EXHAUSTED') || error?.statusCode === 429) {
+          streamErrorMessage = 'Limite di richieste temporaneamente superato per Google Gemini. Attendi un momento e riprova.';
+        } else {
+          streamErrorMessage = `Errore di connessione a Google Gemini: ${msg}`;
+        }
+      },
     });
 
-    return result.toTextStreamResponse();
+    // Avvolgiamo lo stream in modo che, se si verifica un errore durante lo streaming (es. 402 crediti esauriti, 429),
+    // il messaggio di errore venga trasmesso al client anziché chiudere lo stream in modo silente
+    const customStream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          for await (const chunk of result.textStream) {
+            controller.enqueue(encoder.encode(chunk));
+          }
+          if (streamErrorMessage) {
+            controller.enqueue(encoder.encode(`\n\n⚠️ ${streamErrorMessage}`));
+          }
+          controller.close();
+        } catch (err: any) {
+          console.error('Error during textStream consumption:', err);
+          const errorMsg = streamErrorMessage || err?.message || 'Errore durante la generazione della risposta da parte di Socrate.';
+          controller.enqueue(encoder.encode(`\n\n⚠️ ${errorMsg}`));
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(customStream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+      },
+    });
   } catch (error: unknown) {
     console.error('Chat API Error:', error);
     const message =

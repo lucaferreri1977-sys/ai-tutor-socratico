@@ -11,6 +11,8 @@ export interface MessageData {
   imageUrl?: string;
   imageUrls?: string[];
   fileNames?: string[];
+  hasAttachments?: boolean;
+  attachmentCount?: number;
   timestamp?: string;
 }
 
@@ -219,6 +221,14 @@ export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) 
             </div>
           )}
 
+          {/* Fallback per allegati archiviati senza base64 */}
+          {imageAttachments.length === 0 && pdfAttachments.length === 0 && (message.hasAttachments || (message.attachmentCount && message.attachmentCount > 0)) && (
+            <div className="my-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs border border-slate-200 dark:border-slate-700">
+              <span>📷</span>
+              <span className="font-medium">{message.attachmentCount || 'Alcune'} pagine/foto del libro allegate</span>
+            </div>
+          )}
+
           {/* Message text with KaTeX & Markdown */}
           {message.content ? (
             <MathMarkdown content={message.content} />
@@ -228,6 +238,11 @@ export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) 
               <span className="inline-block w-2 h-2 rounded-full bg-sky-500 animate-bounce [animation-delay:-0.15s]"></span>
               <span className="inline-block w-2 h-2 rounded-full bg-sky-500 animate-bounce"></span>
               <span className="ml-1 text-xs text-slate-400">Socrate sta riflettendo...</span>
+            </div>
+          ) : isAssistant ? (
+            <div className="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Nessuna risposta ricevuta da Socrate. I crediti dell&apos;API Google potrebbero essere esauriti. Ricarica su Google AI Studio.</span>
             </div>
           ) : null}
         </div>

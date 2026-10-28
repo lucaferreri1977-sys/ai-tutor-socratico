@@ -51,42 +51,49 @@ export function ChatInput({
     try {
       const processedList: AttachedFile[] = [];
       for (const file of files) {
-        if (file.type.startsWith('image/')) {
-          // Comprimi e ottimizza client-side per evitare 413 su Vercel e ridurre i token a singolo tile (1024px)
-          const compressed = await compressImage(file);
-          processedList.push({
-            url: compressed,
-            name: file.name,
-            type: 'image',
-          });
-        } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-          // Limite 4MB per rimanere ampiamente dentro il payload serverless di Vercel (4.5MB)
-          if (file.size > 4 * 1024 * 1024) {
-            alert(`Il file PDF "${file.name}" supera i 4MB. Allega un PDF più leggero o seleziona solo le pagine del capitolo.`);
-            continue;
+        try {
+          const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name);
+          if (isImage) {
+            // Comprimi e ottimizza client-side per evitare 413 su Vercel e ridurre i token a singolo tile (1024px)
+            const compressed = await compressImage(file);
+            processedList.push({
+              url: compressed,
+              name: file.name,
+              type: 'image',
+            });
+          } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            // Limite 4MB per rimanere ampiamente dentro il payload serverless di Vercel (4.5MB)
+            if (file.size > 4 * 1024 * 1024) {
+              alert(`Il file PDF "${file.name}" supera i 4MB. Allega un PDF più leggero o seleziona solo le pagine del capitolo.`);
+              continue;
+            }
+
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = (err) => reject(err);
+              reader.readAsDataURL(file);
+            });
+
+            processedList.push({
+              url: dataUrl,
+              name: file.name,
+              type: 'pdf',
+            });
+          } else {
+            alert(`Il formato del file "${file.name}" non è supportato. Puoi caricare immagini (JPG, PNG) o documenti PDF.`);
           }
-
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = (err) => reject(err);
-            reader.readAsDataURL(file);
-          });
-
-          processedList.push({
-            url: dataUrl,
-            name: file.name,
-            type: 'pdf',
-          });
-        } else {
-          alert(`Il formato del file "${file.name}" non è supportato. Puoi caricare immagini (JPG, PNG) o documenti PDF.`);
+        } catch (fileErr) {
+          console.error(`Errore elaborazione del file ${file.name}:`, fileErr);
         }
       }
 
-      setAttachedFiles((prev) => {
-        const combined = [...prev, ...processedList];
-        return combined.slice(0, MAX_FILES);
-      });
+      if (processedList.length > 0) {
+        setAttachedFiles((prev) => {
+          const combined = [...prev, ...processedList];
+          return combined.slice(0, MAX_FILES);
+        });
+      }
     } catch (err) {
       console.error('Errore elaborazione allegati:', err);
       alert('Impossibile elaborare alcuni file. Riprova con un formato JPG, PNG o PDF.');

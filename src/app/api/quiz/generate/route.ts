@@ -440,7 +440,10 @@ Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${quest
     });
   } catch (error: unknown) {
     console.error('Quiz generation error:', error);
-    const msg = error instanceof Error ? error.message : 'Errore nella generazione del test';
+    let msg = error instanceof Error ? error.message : 'Errore nella generazione del test';
+    if (msg.includes('prepayment credits') || msg.includes('depleted') || (error as any)?.statusCode === 402) {
+      msg = 'I crediti dell\'API Google Gemini sono esauriti. Ricarica il credito prepagato su Google AI Studio (ai.studio/projects) per generare verifiche.';
+    }
     return new Response(JSON.stringify({ error: msg }), { status: 500 });
   }
 }

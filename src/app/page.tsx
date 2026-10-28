@@ -328,6 +328,18 @@ export default function Home() {
         );
       }
 
+      // Se lo stream si è chiuso senza generare alcun testo
+      if (!accumulatedText.trim()) {
+        throw new Error(
+          'Socrate non ha potuto generare la risposta: i crediti dell\'API Google Gemini potrebbero essere esauriti o la connessione è stata interrotta. Controlla il tuo account Google AI Studio.'
+        );
+      }
+
+      // Se la risposta contiene una segnalazione di crediti esauriti
+      if (accumulatedText.includes('⚠️ I crediti') || accumulatedText.includes('prepayment credits')) {
+        setApiError('Attenzione: i crediti dell\'API Google Gemini sono esauriti. Ricarica il credito su Google AI Studio per continuare.');
+      }
+
       const completedMessages: MessageData[] = [
         ...newMessages,
         {
@@ -349,7 +361,8 @@ export default function Home() {
       console.error('Chat error:', err);
       const errMsg = err instanceof Error ? err.message : 'Errore di connessione.';
       setApiError(errMsg);
-      setMessages((prev) => prev.filter((msg) => msg.id !== assistantId || msg.content !== ''));
+      // Rimuovi il messaggio di Socrate solo se è vuoto per non lasciare righe mute
+      setMessages((prev) => prev.filter((msg) => msg.id !== assistantId || msg.content.trim() !== ''));
     } finally {
       setIsStreaming(false);
     }

@@ -9,10 +9,11 @@
 export async function compressImage(
   file: File,
   maxDim = 1024,
-  quality = 0.72
+  quality = 0.70
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
+    const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name);
+    if (!isImage) {
       return reject(new Error('Il file fornito non è un\'immagine valida.'));
     }
 
@@ -24,13 +25,29 @@ export async function compressImage(
         return reject(new Error('Contenuto immagine vuoto.'));
       }
 
+      // Timeout di sicurezza per evitare blocchi indefiniti nel caricamento immagine
+      let finished = false;
+      const safeTimeout = setTimeout(() => {
+        if (!finished) {
+          finished = true;
+          resolve(src);
+        }
+      }, 8000);
+
       const img = new Image();
       img.onerror = () => {
-        // Fallback: se l'immagine non può essere caricata nel Canvas, restituisci il dataUrl letto
-        resolve(src);
+        if (!finished) {
+          finished = true;
+          clearTimeout(safeTimeout);
+          // Fallback: se l'immagine non può essere caricata nel Canvas, restituisci il dataUrl letto
+          resolve(src);
+        }
       };
 
       img.onload = () => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(safeTimeout);
         try {
           let width = img.width;
           let height = img.height;
@@ -62,7 +79,7 @@ export async function compressImage(
           // Disegna l'immagine sul canvas ridimensionato
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Esporta in formato JPEG compresso ad alta leggibilità didattica
+          // Esporta in formato JPEG compresso ad alta leggibilità didattica (~100-150KB)
           const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
           resolve(compressedDataUrl);
         } catch (err) {
