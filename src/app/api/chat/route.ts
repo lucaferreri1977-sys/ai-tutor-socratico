@@ -189,7 +189,7 @@ export async function POST(req: Request) {
       system: systemPrompt,
       messages: modelMessages,
       temperature: 0.35, // disciplined pedagogical focus
-      maxOutputTokens: 8192, // capiente per evitare qualsiasi blocco a metà durante riassunti, schemi o spiegazioni estese
+      maxOutputTokens: 65536, // Nessun limite restrittivo di output: ammette fino a 65.536 token per generare riassunti e schemi completi ed esaustivi di più pagine di libro senza mai troncare il testo
       onError({ error }: { error: any }) {
         console.error('Gemini streamText error:', error);
         const msg = error?.message || String(error);
