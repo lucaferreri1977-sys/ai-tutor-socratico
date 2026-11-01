@@ -219,8 +219,21 @@ export function QuizModal({
         if (res.status === 504) {
           throw new Error('La richiesta ha impiegato troppo tempo (504 Gateway Timeout). Riprova!');
         }
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Impossibile generare il quiz (${res.status})`);
+        let serverErrorMsg = `Impossibile generare il quiz (${res.status})`;
+        try {
+          const rawErrText = await res.text();
+          if (rawErrText) {
+            try {
+              const parsedErr = JSON.parse(rawErrText);
+              if (parsedErr.error) serverErrorMsg = parsedErr.error;
+            } catch {
+              if (rawErrText.length < 250) serverErrorMsg = rawErrText;
+            }
+          }
+        } catch {
+          // ignore
+        }
+        throw new Error(serverErrorMsg);
       }
 
       if (!res.body) {
@@ -415,8 +428,21 @@ export function QuizModal({
         if (res.status === 504) {
           throw new Error('La richiesta ha impiegato troppo tempo (504 Gateway Timeout). Riprova!');
         }
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Impossibile generare la scheda di ripasso (${res.status})`);
+        let serverErrorMsg = `Impossibile generare la scheda di ripasso (${res.status})`;
+        try {
+          const rawErrText = await res.text();
+          if (rawErrText) {
+            try {
+              const parsedErr = JSON.parse(rawErrText);
+              if (parsedErr.error) serverErrorMsg = parsedErr.error;
+            } catch {
+              if (rawErrText.length < 250) serverErrorMsg = rawErrText;
+            }
+          }
+        } catch {
+          // ignore
+        }
+        throw new Error(serverErrorMsg);
       }
 
       if (!res.body) {

@@ -32,7 +32,7 @@ export function parseQuizJson<T>(rawText: string): T {
   // 3. Terzo tentativo: rimozione backslash non validi di LaTeX (es. \sqrt, \times, \circ) e virgole prima di parentesi chiuse
   try {
     const sanitized = cleaned
-      .replace(/\\([^"\\\/bfnrtu])/g, '$1')
+      .replace(/\\([^"\\/bfnrtu])/g, '$1')
       .replace(/,\s*([\]}])/g, '$1');
     const repairedSanitized = jsonrepair(sanitized);
     return JSON.parse(repairedSanitized) as T;

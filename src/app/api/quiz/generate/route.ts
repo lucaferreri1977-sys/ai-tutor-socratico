@@ -13,7 +13,10 @@ export async function POST(req: Request) {
   try {
     const user = getAuthorizedUser(req);
     if (!user) {
-      return new Response(JSON.stringify({ error: 'Non autorizzato' }), { status: 401 });
+      return new Response(JSON.stringify({ error: 'Accesso protetto: effettua il login per generare le verifiche.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const {
@@ -46,14 +49,20 @@ export async function POST(req: Request) {
     };
 
     if (!subject || !SUBJECTS[subject]) {
-      return new Response(JSON.stringify({ error: 'Materia non valida' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Materia didattica non valida.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const subjectMeta = SUBJECTS[subject];
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Chiave API Gemini mancante' }), { status: 500 });
+      return new Response(JSON.stringify({ error: 'Chiave API Google Gemini mancante.' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const google = createGoogleGenerativeAI({ apiKey });
@@ -337,7 +346,7 @@ Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${quest
             data: item,
             mediaType: 'application/pdf',
           });
-        } else if (typeof item === 'string') {
+        } else if (typeof item === 'string' && (item.startsWith('data:image/') || item.startsWith('http'))) {
           userContent.push({
             type: 'image',
             image: item,
@@ -409,7 +418,12 @@ Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${quest
     let msg = error instanceof Error ? error.message : 'Errore nella generazione del test';
     if (msg.includes('prepayment credits') || msg.includes('depleted') || (error as any)?.statusCode === 402) {
       msg = 'I crediti dell\'API Google Gemini sono esauriti. Ricarica il credito prepagato su Google AI Studio (ai.studio/projects) per generare verifiche.';
+    } else if (msg.includes('RESOURCE_EXHAUSTED') || (error as any)?.statusCode === 429) {
+      msg = 'Limite temporaneo di richieste a Google Gemini raggiunto. Attendi circa 15-30 secondi e riprova.';
     }
-    return new Response(JSON.stringify({ error: msg }), { status: 500 });
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
