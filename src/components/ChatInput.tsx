@@ -26,7 +26,8 @@ export function ChatInput({
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const MAX_FILES = 6;
+  const MAX_FILES = 20;
+  const MAX_TOTAL_BASE64_CHARS = 4.1 * 1024 * 1024; // ~4.1 MB base64 safety ceiling for Vercel 4.5MB limit
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -50,12 +51,19 @@ export function ChatInput({
 
     try {
       const processedList: AttachedFile[] = [];
+      let currentTotalBytes = attachedFiles.reduce((acc, f) => acc + f.url.length, 0);
+
       for (const file of files) {
         try {
           const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name);
           if (isImage) {
             // Comprimi e ottimizza client-side per evitare 413 su Vercel e ridurre i token a singolo tile (1024px)
             const compressed = await compressImage(file);
+            if (currentTotalBytes + compressed.length > MAX_TOTAL_BASE64_CHARS) {
+              alert('Il peso complessivo degli allegati ha raggiunto il limite di sicurezza consentito. Gli allegati successivi sono stati esclusi.');
+              break;
+            }
+            currentTotalBytes += compressed.length;
             processedList.push({
               url: compressed,
               name: file.name,
@@ -74,6 +82,12 @@ export function ChatInput({
               reader.onerror = (err) => reject(err);
               reader.readAsDataURL(file);
             });
+
+            if (currentTotalBytes + dataUrl.length > MAX_TOTAL_BASE64_CHARS) {
+              alert('Il peso complessivo degli allegati ha raggiunto il limite di sicurezza consentito. Gli allegati successivi sono stati esclusi.');
+              break;
+            }
+            currentTotalBytes += dataUrl.length;
 
             processedList.push({
               url: dataUrl,
@@ -148,7 +162,19 @@ export function ChatInput({
 
         {/* Selected files preview list */}
         {attachedFiles.length > 0 && (
-          <div className="p-2 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-sky-400/40 animate-in fade-in">
+          <div className="p-2 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-sky-400/40 animate-in fade-in space-y-1.5">
+            <div className="flex items-center justify-between px-1 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="font-semibold text-sky-700 dark:text-sky-300">
+                {attachedFiles.length} / {MAX_FILES} file allegati (foto / PDF)
+              </span>
+              <button
+                type="button"
+                onClick={() => setAttachedFiles([])}
+                className="text-rose-600 dark:text-rose-400 hover:underline cursor-pointer font-medium"
+              >
+                Rimuovi tutti
+              </button>
+            </div>
             <div className="flex items-center gap-2 overflow-x-auto py-0.5 px-0.5 scrollbar-thin">
               {attachedFiles.map((file, idx) => (
                 file.type === 'pdf' ? (

@@ -110,18 +110,34 @@ export function QuizModal({
   if (!isOpen) return null;
 
   const subjectMeta = SUBJECTS[subject];
+  const MAX_FILES = 20;
+  const MAX_TOTAL_BASE64_CHARS = 4.1 * 1024 * 1024; // ~4.1 MB base64 safety ceiling for Vercel 4.5MB limit
 
   const handleImageFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+
+    if (images.length + files.length > MAX_FILES) {
+      alert(`Puoi allegare al massimo ${MAX_FILES} file per verifica.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setIsProcessingImages(true);
     setError(null);
 
     try {
       const newImages: AttachedFile[] = [];
+      let currentTotalBytes = images.reduce((acc, img) => acc + img.dataUrl.length, 0);
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file.type.startsWith('image/')) {
           const compressedDataUrl = await compressImage(file);
+          if (currentTotalBytes + compressedDataUrl.length > MAX_TOTAL_BASE64_CHARS) {
+            alert('Il peso complessivo degli allegati ha raggiunto il limite di sicurezza consentito. Gli allegati successivi sono stati esclusi.');
+            break;
+          }
+          currentTotalBytes += compressedDataUrl.length;
           newImages.push({
             id: `${Date.now()}-${i}-${Math.random().toString(36).substring(5)}`,
             dataUrl: compressedDataUrl,
@@ -141,6 +157,12 @@ export function QuizModal({
             reader.readAsDataURL(file);
           });
 
+          if (currentTotalBytes + dataUrl.length > MAX_TOTAL_BASE64_CHARS) {
+            alert('Il peso complessivo degli allegati ha raggiunto il limite di sicurezza consentito. Gli allegati successivi sono stati esclusi.');
+            break;
+          }
+          currentTotalBytes += dataUrl.length;
+
           newImages.push({
             id: `${Date.now()}-${i}-${Math.random().toString(36).substring(5)}`,
             dataUrl,
@@ -149,7 +171,10 @@ export function QuizModal({
           });
         }
       }
-      setImages((prev) => [...prev, ...newImages]);
+      setImages((prev) => {
+        const combined = [...prev, ...newImages];
+        return combined.slice(0, MAX_FILES);
+      });
     } catch (e) {
       console.error('Error processing files:', e);
       setError('Impossibile caricare alcuni file. Riprova con JPG, PNG o PDF.');
@@ -186,9 +211,17 @@ export function QuizModal({
         }),
       });
 
+      if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error('I file o le foto allegate superano il limite consentito dal server. Riprova con file più leggeri o meno pagine.');
+        }
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Impossibile generare il quiz (${res.status})`);
+      }
+
       const data = await res.json();
-      if (!res.ok || !data.questions) {
-        throw new Error(data.error || 'Impossibile generare il quiz');
+      if (!data.questions) {
+        throw new Error('Impossibile generare il quiz');
       }
 
       const generatedQuestions = data.questions as QuizQuestion[];
@@ -568,69 +601,85 @@ export function QuizModal({
 
                 {/* Previews Grid if files are uploaded */}
                 {images.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    {images.map((img, index) => (
-                      img.isPdf || img.dataUrl.startsWith('data:application/pdf') ? (
-                        <div
-                          key={img.id}
-                          className="relative group aspect-3/4 rounded-xl overflow-hidden border-2 border-rose-400/60 bg-rose-50/80 dark:bg-rose-950/40 p-2 flex flex-col justify-between items-center text-center shadow-2xs"
-                        >
-                          <div className="flex flex-col items-center justify-center flex-1 w-full pt-1">
-                            <FileText className="w-7 h-7 text-rose-600 dark:text-rose-400 mb-1 flex-shrink-0" />
-                            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 line-clamp-2 break-all px-0.5" title={img.name}>
-                              {img.name}
-                            </span>
-                            <span className="mt-1 px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-[9px] font-bold">
-                              PDF
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(img.id)}
-                            className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
-                            title="Rimuovi documento"
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      <span className="font-semibold text-sky-700 dark:text-sky-300">
+                        {images.length} / {MAX_FILES} file allegati (foto / PDF)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setImages([])}
+                        className="text-rose-600 dark:text-rose-400 hover:underline cursor-pointer font-medium"
+                      >
+                        Rimuovi tutti
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      {images.map((img, index) => (
+                        img.isPdf || img.dataUrl.startsWith('data:application/pdf') ? (
+                          <div
+                            key={img.id}
+                            className="relative group aspect-3/4 rounded-xl overflow-hidden border-2 border-rose-400/60 bg-rose-50/80 dark:bg-rose-950/40 p-2 flex flex-col justify-between items-center text-center shadow-2xs"
                           >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div
-                          key={img.id}
-                          className="relative group aspect-3/4 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black/5 dark:bg-white/5"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={img.dataUrl}
-                            alt={`Pagina ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 text-center">
-                            <span className="text-[10px] text-white font-medium">
-                              Foto {index + 1}
-                            </span>
+                            <div className="flex flex-col items-center justify-center flex-1 w-full pt-1">
+                              <FileText className="w-7 h-7 text-rose-600 dark:text-rose-400 mb-1 flex-shrink-0" />
+                              <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200 line-clamp-2 break-all px-0.5" title={img.name}>
+                                {img.name}
+                              </span>
+                              <span className="mt-1 px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-[9px] font-bold">
+                                PDF
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(img.id)}
+                              className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
+                              title="Rimuovi documento"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(img.id)}
-                            className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
-                            title="Rimuovi foto"
+                        ) : (
+                          <div
+                            key={img.id}
+                            className="relative group aspect-3/4 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black/5 dark:bg-white/5"
                           >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )
-                    ))}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={img.dataUrl}
+                              alt={`Pagina ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 text-center">
+                              <span className="text-[10px] text-white font-medium">
+                                Foto {index + 1}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(img.id)}
+                              className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-xs opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
+                              title="Rimuovi foto"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )
+                      ))}
 
-                    {/* Add More Button */}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isProcessingImages}
-                      className="aspect-3/4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-400 hover:bg-sky-50/50 dark:hover:bg-sky-950/20 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-sky-600 transition-all cursor-pointer"
-                    >
-                      <Paperclip className="w-5 h-5" />
-                      <span className="text-[10px] font-semibold">+ Altro file</span>
-                    </button>
+                      {/* Add More Button */}
+                      {images.length < MAX_FILES && (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isProcessingImages}
+                          className="aspect-3/4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-400 hover:bg-sky-50/50 dark:hover:bg-sky-950/20 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-sky-600 transition-all cursor-pointer"
+                        >
+                          <Paperclip className="w-5 h-5" />
+                          <span className="text-[10px] font-semibold">+ Altro file</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 

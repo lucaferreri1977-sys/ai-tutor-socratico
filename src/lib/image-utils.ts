@@ -3,7 +3,7 @@
  * - Ridimensiona foto giganti (es. scatti da 12-48MP da smartphone) mantenendo risoluzione ottimale (max 1400px)
  *   e testo nitidissimo per l'OCR di Gemini.
  * - Evita rigorosamente errori HTTP 413 (Payload Too Large) dovuti al limite di 4.5MB di Vercel Serverless Functions.
- * - Converte file in JPEG leggeri (~120-220 KB), permettendo di allegare fino a 6 foto senza mai sforare i limiti.
+ * - Converte file in JPEG leggeri (~100-140 KB), permettendo di allegare fino a 20 foto senza mai sforare i limiti.
  */
 
 export async function compressImage(
