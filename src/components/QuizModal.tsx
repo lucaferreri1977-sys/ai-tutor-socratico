@@ -6,6 +6,7 @@ import { X, CheckCircle2, XCircle, Award, Sparkles, ArrowRight, RotateCcw, Loade
 import { fireCelebrationConfetti } from '@/lib/confetti';
 import { compressImage } from '@/lib/image-utils';
 import { cleanTopicInput } from '@/lib/topic-utils';
+import { parseQuizJson, shuffleQuizOptions } from '@/lib/quiz-parser';
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -215,16 +216,43 @@ export function QuizModal({
         if (res.status === 413) {
           throw new Error('I file o le foto allegate superano il limite consentito dal server. Riprova con file più leggeri o meno pagine.');
         }
+        if (res.status === 504) {
+          throw new Error('La richiesta ha impiegato troppo tempo (504 Gateway Timeout). Riprova!');
+        }
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || `Impossibile generare il quiz (${res.status})`);
       }
 
-      const data = await res.json();
-      if (!data.questions) {
-        throw new Error('Impossibile generare il quiz');
+      if (!res.body) {
+        throw new Error('Nessun flusso di risposta ricevuto dal server.');
       }
 
-      const generatedQuestions = data.questions as QuizQuestion[];
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let rawText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        rawText += decoder.decode(value, { stream: true });
+      }
+
+      if (rawText.includes('⚠️')) {
+        const match = rawText.match(/⚠️\s*([^\n]+)/);
+        throw new Error(match ? match[1] : 'Errore durante la generazione del quiz.');
+      }
+
+      const parsed = parseQuizJson<{ topic?: string; questions: QuizQuestion[] }>(rawText);
+
+      if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+        throw new Error('Formato quiz non valido restituito dall\'AI. Riprova a cliccare su Avvia Verifica!');
+      }
+
+      const randomizedQuestions = shuffleQuizOptions(parsed.questions);
+      const generatedQuestions = randomizedQuestions.length > questionCount
+        ? randomizedQuestions.slice(0, questionCount)
+        : randomizedQuestions;
+
       setQuestions(generatedQuestions);
       setSessionSeenQuestions((prev) =>
         Array.from(new Set([...prev, ...generatedQuestions.map((q) => q.question)]))
@@ -383,13 +411,46 @@ export function QuizModal({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.questions || data.questions.length === 0) {
-        throw new Error(data.error || 'Impossibile generare la scheda di ripasso');
+      if (!res.ok) {
+        if (res.status === 504) {
+          throw new Error('La richiesta ha impiegato troppo tempo (504 Gateway Timeout). Riprova!');
+        }
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Impossibile generare la scheda di ripasso (${res.status})`);
       }
 
-      setReinforcementRecap(data.recapPoints || []);
-      setReinforcementQuestions(data.questions);
+      if (!res.body) {
+        throw new Error('Nessun flusso di risposta ricevuto dal server.');
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let rawText = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        rawText += decoder.decode(value, { stream: true });
+      }
+
+      if (rawText.includes('⚠️')) {
+        const match = rawText.match(/⚠️\s*([^\n]+)/);
+        throw new Error(match ? match[1] : 'Errore durante la generazione del ripasso.');
+      }
+
+      const parsed = parseQuizJson<{
+        topic?: string;
+        recapPoints?: ReinforcementRecapPoint[];
+        questions: QuizQuestion[];
+      }>(rawText);
+
+      if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+        throw new Error('Formato quiz di recupero non valido restituito dall\'AI');
+      }
+
+      const randomizedReinforcementQuestions = shuffleQuizOptions(parsed.questions);
+
+      setReinforcementRecap(parsed.recapPoints || []);
+      setReinforcementQuestions(randomizedReinforcementQuestions);
       setReinforcementStage('recap');
       setReinforcementAttempt((prev) => (isRetry ? prev + 1 : 1));
     } catch (err: unknown) {

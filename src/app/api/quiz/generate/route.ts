@@ -1,90 +1,13 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateText } from 'ai';
-import { jsonrepair } from 'jsonrepair';
+import { streamText } from 'ai';
 import { SubjectId, SUBJECTS, QuizQuestion, StudentId, QuizTestRecord, ReinforcementRecapPoint } from '@/lib/types';
 import { getAuthorizedUser } from '@/lib/auth-check';
 import { getFirestoreDb, TUTOR_QUIZZES_COLLECTION } from '@/lib/firebase-admin';
 import { cleanTopicInput } from '@/lib/topic-utils';
+import { parseQuizJson, shuffleQuizOptions } from '@/lib/quiz-parser';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
-
-function parseQuizJson<T>(rawText: string): T {
-  let cleaned = rawText.trim();
-  if (cleaned.startsWith('```json')) {
-    cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '').trim();
-  } else if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```/, '').replace(/```$/, '').trim();
-  }
-  const firstBrace = cleaned.indexOf('{');
-  const lastBrace = cleaned.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
-  }
-
-  // 1. Primo tentativo: JSON.parse nativo
-  try {
-    return JSON.parse(cleaned) as T;
-  } catch (initialErr) {
-    console.warn('Initial JSON.parse failed, attempting jsonrepair:', initialErr);
-  }
-
-  // 2. Secondo tentativo: jsonrepair (ripara virgolette, virgole mancanti/extra, parentesi)
-  try {
-    const repaired = jsonrepair(cleaned);
-    return JSON.parse(repaired) as T;
-  } catch (repairErr) {
-    console.warn('jsonrepair failed, attempting regex sanitization:', repairErr);
-  }
-
-  // 3. Terzo tentativo: rimozione backslash non validi di LaTeX (es. \sqrt, \times, \circ) e virgole prima di parentesi chiuse
-  try {
-    const sanitized = cleaned
-      .replace(/\\([^"\\\/bfnrtu])/g, '$1')
-      .replace(/,\s*([\]}])/g, '$1');
-    const repairedSanitized = jsonrepair(sanitized);
-    return JSON.parse(repairedSanitized) as T;
-  } catch (finalErr) {
-    console.error('All JSON parsing attempts failed:', finalErr, 'Raw snippet:', cleaned.slice(0, 500));
-    throw new Error('Socrate ha riscontrato una piccola anomalia nella formattazione del test. Riprova a cliccare su Avvia Verifica!');
-  }
-}
-
-function shuffleQuizOptions(questions: QuizQuestion[]): QuizQuestion[] {
-  return questions.map((q, qIdx) => {
-    if (!Array.isArray(q.options) || q.options.length <= 1) {
-      return q;
-    }
-
-    const rawCorrectIndex =
-      typeof q.correctOptionIndex === 'number' &&
-      q.correctOptionIndex >= 0 &&
-      q.correctOptionIndex < q.options.length
-        ? q.correctOptionIndex
-        : 0;
-
-    const items = q.options.map((opt, idx) => ({
-      text: opt,
-      isCorrect: idx === rawCorrectIndex,
-    }));
-
-    for (let i = items.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [items[i], items[j]] = [items[j], items[i]];
-    }
-
-    const shuffledOptions = items.map((it) => it.text);
-    const newCorrectIndex = items.findIndex((it) => it.isCorrect);
-
-    return {
-      ...q,
-      id: q.id || `q-${qIdx + 1}`,
-      options: shuffledOptions,
-      correctOptionIndex: newCorrectIndex !== -1 ? newCorrectIndex : 0,
-      hint: typeof q.hint === 'string' && q.hint.trim() ? q.hint.trim() : undefined,
-    };
-  });
-}
 
 export async function POST(req: Request) {
   try {
@@ -203,37 +126,54 @@ ${m.explanation ? `- Spiegazione: "${m.explanation}"` : ''}
 
 Genera la Scheda di Ripasso ("recapPoints", uno per ciascun errore) e il Mini-Test di Rivincita ("questions", esattamente ${reinforcementCount} nuove domande diverse). Rispondi solo in JSON.`;
 
-      const reinforcementResult = await generateText({
+      let reinforcementStreamErrorMessage: string | null = null;
+      const reinforcementResult = streamText({
         model: google(modelName),
         system: reinforcementSystemPrompt,
         messages: [{ role: 'user', content: [{ type: 'text', text: reinforcementUserText }] }],
-        temperature: 0.7,
+        temperature: 0.5,
         maxOutputTokens: 8192,
+        providerOptions: {
+          google: {
+            thinkingConfig: {
+              thinkingBudget: 0,
+            },
+          },
+        },
+        onError({ error }: { error: any }) {
+          console.error('Reinforcement streamText error:', error);
+          const msg = error?.message || String(error);
+          reinforcementStreamErrorMessage = msg.includes('prepayment credits') || msg.includes('depleted') || error?.statusCode === 402
+            ? 'I crediti dell\'API Google Gemini sono esauriti.'
+            : `Errore: ${msg}`;
+        },
       });
 
-      const parsedReinforcement = parseQuizJson<{
-        topic?: string;
-        recapPoints?: ReinforcementRecapPoint[];
-        questions: QuizQuestion[];
-      }>(reinforcementResult.text);
+      const customReinforcementStream = new ReadableStream({
+        async start(controller) {
+          const encoder = new TextEncoder();
+          try {
+            for await (const chunk of reinforcementResult.textStream) {
+              controller.enqueue(encoder.encode(chunk));
+            }
+            if (reinforcementStreamErrorMessage) {
+              controller.enqueue(encoder.encode(`\n\n⚠️ ${reinforcementStreamErrorMessage}`));
+            }
+            controller.close();
+          } catch (err: any) {
+            const errorMsg = reinforcementStreamErrorMessage || err?.message || 'Errore durante la generazione del ripasso.';
+            controller.enqueue(encoder.encode(`\n\n⚠️ ${errorMsg}`));
+            controller.close();
+          }
+        },
+      });
 
-      if (!parsedReinforcement.questions || !Array.isArray(parsedReinforcement.questions) || parsedReinforcement.questions.length === 0) {
-        throw new Error('Formato quiz di recupero non valido restituito dall\'AI');
-      }
-
-      const randomizedReinforcementQuestions = shuffleQuizOptions(parsedReinforcement.questions);
-
-      return new Response(
-        JSON.stringify({
-          topic: parsedReinforcement.topic || promptTopic || subjectMeta.name,
-          recapPoints: parsedReinforcement.recapPoints || [],
-          questions: randomizedReinforcementQuestions,
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return new Response(customReinforcementStream, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache',
+        },
+      });
     }
 
     // Recupera lo storico delle domande già somministrate per non ripeterle
@@ -406,7 +346,8 @@ Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${quest
       }
     }
 
-    const result = await generateText({
+    let streamErrorMessage: string | null = null;
+    const result = streamText({
       model: google(modelName),
       system: systemPrompt,
       messages: [
@@ -415,28 +356,53 @@ Genera ESATTAMENTE ${questionCount} domande a scelta multipla (il numero ${quest
           content: userContent,
         },
       ],
-      temperature: 0.75, // Permette creatività, variabilità ed evita risposte identiche e deterministiche
+      temperature: 0.5,
       maxOutputTokens: 8192,
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
+        },
+      },
+      onError({ error }: { error: any }) {
+        console.error('Quiz streamText error:', error);
+        const msg = error?.message || String(error);
+        if (msg.includes('prepayment credits') || msg.includes('depleted') || (error as any)?.statusCode === 402) {
+          streamErrorMessage = 'I crediti dell\'API Google Gemini sono esauriti. Ricarica il credito prepagato su Google AI Studio per generare verifiche.';
+        } else if (msg.includes('RESOURCE_EXHAUSTED') || (error as any)?.statusCode === 429) {
+          streamErrorMessage = 'Limite di richieste temporaneamente superato per Google Gemini. Attendi un momento e riprova.';
+        } else {
+          streamErrorMessage = `Errore di connessione a Google Gemini: ${msg}`;
+        }
+      },
     });
 
-    const parsed = parseQuizJson<{ topic?: string; questions: QuizQuestion[] }>(result.text);
+    const customStream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          for await (const chunk of result.textStream) {
+            controller.enqueue(encoder.encode(chunk));
+          }
+          if (streamErrorMessage) {
+            controller.enqueue(encoder.encode(`\n\n⚠️ ${streamErrorMessage}`));
+          }
+          controller.close();
+        } catch (err: any) {
+          console.error('Error during textStream consumption:', err);
+          const errorMsg = streamErrorMessage || err?.message || 'Errore durante la generazione della verifica.';
+          controller.enqueue(encoder.encode(`\n\n⚠️ ${errorMsg}`));
+          controller.close();
+        }
+      },
+    });
 
-    if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
-      throw new Error('Formato quiz non valido restituito dall\'AI');
-    }
-
-    const randomizedQuestions = shuffleQuizOptions(parsed.questions);
-    // Se l'AI ha generato più domande del previsto, tronca al numero esatto selezionato
-    const finalQuestions = randomizedQuestions.length > questionCount
-      ? randomizedQuestions.slice(0, questionCount)
-      : randomizedQuestions;
-
-    return new Response(JSON.stringify({
-      topic: promptTopic || parsed.topic || (hasAttachments ? `Verifica da ${rawAttachments.length} ${rawAttachments.length === 1 ? 'allegato' : 'allegati'}` : subjectMeta.name),
-      questions: finalQuestions,
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+    return new Response(customStream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+      },
     });
   } catch (error: unknown) {
     console.error('Quiz generation error:', error);

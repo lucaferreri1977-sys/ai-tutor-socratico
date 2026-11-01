@@ -8,8 +8,8 @@
 
 export async function compressImage(
   file: File,
-  maxDim = 1024,
-  quality = 0.70
+  maxDim = 960,
+  quality = 0.68
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name);
