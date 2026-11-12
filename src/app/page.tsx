@@ -276,6 +276,7 @@ export default function Home() {
       );
 
       const payloadMessages = newMessages.map((m, idx) => ({
+        id: m.id,
         role: m.role,
         content: m.content,
         imageUrl: idx === lastIndexWithAttachments ? m.imageUrl : undefined,

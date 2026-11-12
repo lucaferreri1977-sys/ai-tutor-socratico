@@ -82,24 +82,31 @@ export async function POST(req: Request) {
 
     if (messages.length <= MAX_RECENT_MESSAGES) {
       windowedMessages = [...messages];
+    } else if (activeImageMessageIndex !== -1 && activeImageMessageIndex < messages.length - MAX_RECENT_MESSAGES) {
+      const imageMsg = messages[activeImageMessageIndex];
+      const nextMsg = messages[activeImageMessageIndex + 1];
+      const initialPair = nextMsg && nextMsg.role === 'assistant' ? [imageMsg, nextMsg] : [imageMsg];
+
+      // Calcola l'inizio della fetta recente garantendo di non duplicare initialPair
+      const minRecentStart = activeImageMessageIndex + initialPair.length;
+      const desiredRecentStart = messages.length - (MAX_RECENT_MESSAGES - initialPair.length);
+      const actualRecentStart = Math.max(minRecentStart, desiredRecentStart);
+      const recentSlice = messages.slice(actualRecentStart);
+
+      windowedMessages = [...initialPair, ...recentSlice];
     } else {
-      const recentSlice = messages.slice(-MAX_RECENT_MESSAGES);
-      if (activeImageMessageIndex !== -1 && activeImageMessageIndex < messages.length - MAX_RECENT_MESSAGES) {
-        const imageMsg = messages[activeImageMessageIndex];
-        const nextMsg = messages[activeImageMessageIndex + 1];
-        const initialPair = nextMsg && nextMsg.role === 'assistant' ? [imageMsg, nextMsg] : [imageMsg];
-        const recentFiltered = recentSlice.filter(
-          (m) => m.id !== imageMsg.id && (!nextMsg || m.id !== nextMsg.id)
-        );
-        windowedMessages = [...initialPair, ...recentFiltered];
-      } else {
-        windowedMessages = [...recentSlice];
-      }
+      windowedMessages = messages.slice(-MAX_RECENT_MESSAGES);
     }
 
-    // Assicuriamo che la sequenza inizi sempre con un messaggio 'user' (requisito API Gemini)
+    // Assicuriamo che la sequenza inizi SEMPRE con un messaggio 'user' (requisito API Gemini)
     while (windowedMessages.length > 0 && windowedMessages[0].role !== 'user') {
       windowedMessages.shift();
+    }
+
+    // Assicuriamo che la sequenza finisca SEMPRE con un messaggio 'user' (requisito ferreo API Gemini:
+    // "Requests ending with a model turn are not supported")
+    while (windowedMessages.length > 0 && windowedMessages[windowedMessages.length - 1].role !== 'user') {
+      windowedMessages.pop();
     }
 
     // Fusione di messaggi consecutivi con lo stesso ruolo per garantire rigorosa alternanza user <-> assistant
@@ -121,6 +128,23 @@ export async function POST(req: Request) {
       } else {
         mergedMessages.push({ ...msg });
       }
+    }
+
+    // Controllo finale di sicurezza: deve iniziare con 'user' e finire tassativamente con 'user'
+    while (mergedMessages.length > 0 && mergedMessages[0].role !== 'user') {
+      mergedMessages.shift();
+    }
+    while (mergedMessages.length > 0 && mergedMessages[mergedMessages.length - 1].role !== 'user') {
+      mergedMessages.pop();
+    }
+
+    // Se per qualsiasi motivo l'elenco fosse vuoto, creiamo un messaggio utente valido di fallback
+    if (mergedMessages.length === 0) {
+      const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+      mergedMessages.push(lastUser || {
+        role: 'user',
+        content: 'Ciao Socrate! Continuiamo con lo studio.',
+      });
     }
 
     // Individuiamo l'indice del messaggio con allegati (foto o PDF) all'interno dei messaggi normalizzati
